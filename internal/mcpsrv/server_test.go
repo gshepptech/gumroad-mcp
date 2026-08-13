@@ -296,3 +296,59 @@ func TestCLIFailureSurfacesAsToolError(t *testing.T) {
 		t.Errorf("auth failure did not tell the user how to fix it: %s", body)
 	}
 }
+
+// TestDryRunRunsWithoutConfirmAndWithoutYes covers the fix for a real defect:
+// gloop used to refuse `products content set --dry-run` outright, even though a
+// dry run sends nothing to Gumroad.
+func TestDryRunRunsWithoutConfirmAndWithoutYes(t *testing.T) {
+	r, calls := stubCLI(t)
+	sess := connect(t, r, Options{}) // no --allow-danger
+
+	res := call(t, sess, "gumroad_run", map[string]any{
+		"command": []string{"products", "content", "set", "P1", "c.json", "--dry-run"},
+	})
+	if res.IsError {
+		t.Fatalf("a dry run of an irreversible command was refused: %s", text(res))
+	}
+
+	c := calls()
+	if len(c) != 1 {
+		t.Fatalf("expected one invocation, got %v", c)
+	}
+	if !strings.Contains(c[0], "--dry-run") {
+		t.Errorf("--dry-run was dropped: %q", c[0])
+	}
+	if strings.Contains(c[0], "--yes") {
+		t.Errorf("a dry run was auto-confirmed, which muddies what actually ran: %q", c[0])
+	}
+}
+
+func TestDryRunWorksOnAReadOnlyServer(t *testing.T) {
+	r, calls := stubCLI(t)
+	sess := connect(t, r, Options{ReadOnly: true})
+
+	res := call(t, sess, "gumroad_run", map[string]any{
+		"command": []string{"products", "update", "P1", "--name", "X", "--dry-run"},
+	})
+	if res.IsError {
+		t.Fatalf("read-only server refused a dry run: %s", text(res))
+	}
+	if len(calls()) != 1 {
+		t.Error("the dry run did not reach the CLI")
+	}
+}
+
+func TestDryRunStillCannotReachAdmin(t *testing.T) {
+	r, calls := stubCLI(t)
+	sess := connect(t, r, Options{AllowDanger: true})
+
+	res := call(t, sess, "gumroad_run", map[string]any{
+		"command": []string{"admin", "users", "suspend", "--dry-run"},
+	})
+	if !res.IsError {
+		t.Error("--dry-run opened the admin surface")
+	}
+	if c := calls(); len(c) > 0 {
+		t.Errorf("admin reached the CLI: %v", c)
+	}
+}

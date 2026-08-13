@@ -226,6 +226,21 @@ type Decision struct {
 	Allowed bool
 	// Reason explains a refusal, in words meant for the model to act on.
 	Reason string
+	// DryRun means the argv asked the CLI to print the request it would send
+	// instead of sending it, which is why the tier gate let it through.
+	DryRun bool
+}
+
+// hasDryRun reports whether the caller asked for a preview. The Gumroad CLI
+// treats --dry-run as a global flag: mutating commands print the request they
+// would send and stop, and read commands ignore it.
+func hasDryRun(argv []string) bool {
+	for _, a := range argv {
+		if a == "--dry-run" {
+			return true
+		}
+	}
+	return false
 }
 
 // Classify resolves an argv against the policy. It matches the longest command
@@ -278,16 +293,31 @@ func Classify(argv []string, readOnly, enableDanger bool) Decision {
 			strings.Join(words, " "))}
 	}
 
-	d := Decision{Command: best, Matched: bestN}
+	d := Decision{Command: best, Matched: bestN, DryRun: hasDryRun(argv)}
 	switch {
 	case best.Tier == Forbidden:
+		// A preview of a forbidden command still reveals the surface gloop
+		// refuses to expose, so --dry-run does not open it.
 		d.Reason = fmt.Sprintf("`gumroad %s` is never available through gloop: %s", best.Name(), best.Why)
+
+	case d.DryRun:
+		// A dry run prints the request the CLI would send and stops. Nothing
+		// reaches Gumroad, so it is a read whatever the command's own tier is.
+		// Refusing it would push a caller towards running the real thing blind,
+		// which is the opposite of what the gate is for.
+		d.Allowed = true
+
 	case readOnly && best.Tier != Read:
-		d.Reason = fmt.Sprintf("this gloop server is read-only; `gumroad %s` is a %s command", best.Name(), best.Tier)
+		d.Reason = fmt.Sprintf(
+			"this gloop server is read-only; `gumroad %s` is a %s command. Add --dry-run to preview it.",
+			best.Name(), best.Tier)
+
 	case best.Tier == Danger && !enableDanger:
 		d.Reason = fmt.Sprintf(
-			"`gumroad %s` is irreversible (%s) and this gloop server was not started with --allow-danger",
+			"`gumroad %s` is irreversible (%s) and this gloop server was not started with "+
+				"--allow-danger. Add --dry-run to see the request it would send.",
 			best.Name(), best.Why)
+
 	default:
 		d.Allowed = true
 	}

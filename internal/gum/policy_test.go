@@ -247,3 +247,59 @@ func subcommands(t *testing.T, path []string) []string {
 	}
 	return subs
 }
+
+// TestDryRunDowngradesToRead: a preview prints the request and stops, so
+// refusing it only pushes a caller towards running the real thing blind.
+func TestDryRunDowngradesToRead(t *testing.T) {
+	for _, c := range policy {
+		if c.Tier == Forbidden {
+			continue
+		}
+		argv := append(append([]string{}, c.Path...), "--dry-run")
+
+		// Allowed under every posture, including read-only.
+		for _, posture := range []struct{ readOnly, danger bool }{
+			{false, false}, {false, true}, {true, false},
+		} {
+			d := Classify(argv, posture.readOnly, posture.danger)
+			if !d.Allowed {
+				t.Errorf("--dry-run on %s was refused (readOnly=%v danger=%v): %s",
+					c.Name(), posture.readOnly, posture.danger, d.Reason)
+			}
+			if !d.DryRun {
+				t.Errorf("%s: DryRun flag not set on the decision", c.Name())
+			}
+		}
+	}
+}
+
+// TestDryRunDoesNotOpenTheForbiddenTier: previewing an admin command still
+// exposes the surface gloop refuses to expose at all.
+func TestDryRunDoesNotOpenTheForbiddenTier(t *testing.T) {
+	for _, argv := range [][]string{
+		{"admin", "users", "suspend", "--dry-run"},
+		{"auth", "token", "--dry-run"},
+		{"admin", "--dry-run"},
+	} {
+		if d := Classify(argv, false, true); d.Allowed {
+			t.Errorf("%v was allowed by adding --dry-run", argv)
+		}
+	}
+}
+
+// TestRefusalsPointAtDryRun: a refusal that does not name the safe alternative
+// leaves the caller guessing.
+func TestRefusalsPointAtDryRun(t *testing.T) {
+	d := Classify([]string{"sales", "refund", "S1"}, false, false)
+	if d.Allowed {
+		t.Fatal("sales refund was allowed without --allow-danger")
+	}
+	if !strings.Contains(d.Reason, "--dry-run") {
+		t.Errorf("danger refusal does not mention --dry-run: %s", d.Reason)
+	}
+
+	d = Classify([]string{"products", "create"}, true, false)
+	if !strings.Contains(d.Reason, "--dry-run") {
+		t.Errorf("read-only refusal does not mention --dry-run: %s", d.Reason)
+	}
+}

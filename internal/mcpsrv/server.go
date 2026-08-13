@@ -66,7 +66,11 @@ func instructions(o Options) string {
 			"command, including exact flags, JSON response shapes, and per-command gotchas.\n" +
 			"Then call gumroad_run with the command as an argv array.\n\n" +
 			"Do NOT pass --json, --no-input, or --quiet: gloop adds them. Do not pass --yes\n" +
-			"either; gloop decides when confirmation is warranted.\n\n")
+			"either; gloop decides when confirmation is warranted.\n\n" +
+			"DO pass --dry-run before any write you have not made before. The CLI prints the\n" +
+			"request it would send and stops, nothing reaches Gumroad, and gloop allows it for\n" +
+			"any command it can run at all — including the irreversible ones it would otherwise\n" +
+			"refuse. Read the preview, then decide.\n\n")
 
 	switch {
 	case o.ReadOnly:
@@ -87,7 +91,7 @@ func instructions(o Options) string {
 // --- the proxy ---------------------------------------------------------------
 
 type runArgs struct {
-	Command []string `json:"command" jsonschema:"The gumroad command as an argv array, e.g. [\"products\",\"list\"] or [\"sales\",\"list\",\"--after\",\"2026-01-01\"]. Omit --json, --no-input, --quiet and --yes; gloop supplies them."`
+	Command []string `json:"command" jsonschema:"The gumroad command as an argv array, e.g. [\"products\",\"list\"] or [\"sales\",\"list\",\"--after\",\"2026-01-01\"]. Omit --json, --no-input, --quiet and --yes; gloop supplies them. Include --dry-run to preview a write instead of running it — that is allowed for every command, including ones that would otherwise be refused."`
 	Confirm bool     `json:"confirm,omitempty" jsonschema:"Required only for irreversible commands. Set it solely after the user has asked for that exact action; never to clear a refusal you hit by accident."`
 }
 
@@ -179,15 +183,22 @@ func (r *registry) exec(ctx context.Context, in runArgs) (string, error) {
 
 	args := append([]string{}, in.Command...)
 
-	if d.Command.Tier == gum.Danger {
+	switch {
+	case d.DryRun:
+		// The CLI prints the request and stops, so there is nothing to confirm
+		// and appending --yes would only muddy what ran.
+
+	case d.Command.Tier == gum.Danger:
 		if !in.Confirm {
 			return "", fmt.Errorf(
-				"refused: `gumroad %s` cannot be undone — %s. Ask the user to confirm this exact "+
-					"action, then call again with confirm=true",
+				"refused: `gumroad %s` cannot be undone — %s. Add --dry-run to see the request it "+
+					"would send, or ask the user to confirm this exact action and call again with "+
+					"confirm=true",
 				d.Command.Name(), d.Command.Why)
 		}
 		args = append(args, "--yes")
-	} else if d.Command.Tier == gum.Write {
+
+	case d.Command.Tier == gum.Write:
 		// Writes are reversible from the dashboard, and --no-input turns any
 		// prompt into a failure, so auto-confirm them rather than dead-ending.
 		args = append(args, "--yes")
