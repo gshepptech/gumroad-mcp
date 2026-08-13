@@ -1,0 +1,15 @@
+# Build output. Anchored with a leading slash: a bare `gloop` would also match
+# the cmd/gloop/ source directory and quietly drop main.go from the repo.
+/bin/
+/gloop
+
+# Go
+*.test
+*.out
+coverage.*
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
