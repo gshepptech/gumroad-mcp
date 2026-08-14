@@ -15,6 +15,7 @@ package mcpsrv
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -360,16 +361,5 @@ func posture(o Options) string {
 func ptr[T any](v T) *T { return &v }
 
 func asGum(err error, target **gum.Error) bool {
-	for e := err; e != nil; {
-		if g, ok := e.(*gum.Error); ok {
-			*target = g
-			return true
-		}
-		u, ok := e.(interface{ Unwrap() error })
-		if !ok {
-			return false
-		}
-		e = u.Unwrap()
-	}
-	return false
+	return errors.As(err, target)
 }

@@ -13,6 +13,7 @@ package gumroad
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,6 +32,9 @@ type Client struct {
 	BaseURL   string
 	HTTP      *http.Client
 	UserAgent string
+	// RetryBase is the first backoff delay; each retry doubles it. Zero means
+	// DefaultRetryBase. Tests set it small so they do not sleep for seconds.
+	RetryBase time.Duration
 }
 
 // New returns a Client for the given access token, which callers get from
@@ -62,29 +66,42 @@ func (e *APIError) Retryable() bool {
 	return e.StatusCode == 429 || e.StatusCode >= 500
 }
 
+const (
+	// maxAttempts is the initial try plus three retries.
+	maxAttempts = 4
+	// DefaultRetryBase gives 1s, 2s, 4s — enough for a per-minute limiter to refill.
+	DefaultRetryBase = time.Second
+)
+
 // get issues an authenticated GET and decodes the response.
-//
-// It retries on 429 and 5xx, because the one thing this client does that the
-// CLI cannot is paginate reviews, and a large catalogue will hit the limiter.
 func (c *Client) get(ctx context.Context, path string, params url.Values, out any) error {
 	u := c.BaseURL + path
 	if len(params) > 0 {
 		u += "?" + params.Encode()
 	}
+	return c.retry(ctx, func() error { return c.once(ctx, u, true, out) })
+}
 
+// retry runs do until it succeeds, fails unretryably, or runs out of attempts.
+//
+// Reviews are the one thing this client paginates, and a large catalogue will
+// meet the rate limiter, so a bare failure is not good enough.
+func (c *Client) retry(ctx context.Context, do func() error) error {
 	var lastErr error
-	for attempt := range 4 {
+	for attempt := range maxAttempts {
 		if attempt > 0 {
-			// 1s, 2s, 4s. Enough for a per-minute limiter to refill.
-			delay := time.Duration(1<<(attempt-1)) * time.Second
+			base := c.RetryBase
+			if base <= 0 {
+				base = DefaultRetryBase
+			}
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case <-time.After(delay):
+			case <-time.After(time.Duration(1<<(attempt-1)) * base):
 			}
 		}
 
-		err := c.once(ctx, u, out)
+		err := do()
 		if err == nil {
 			return nil
 		}
@@ -98,14 +115,16 @@ func (c *Client) get(ctx context.Context, path string, params url.Values, out an
 	return lastErr
 }
 
-func (c *Client) once(ctx context.Context, u string, out any) error {
+func (c *Client) once(ctx context.Context, u string, auth bool, out any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", c.UserAgent)
-	if c.Token != "" {
+	// The public endpoints live on the seller's own subdomain and must carry
+	// no credential.
+	if auth && c.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.Token)
 	}
 
@@ -145,12 +164,11 @@ func decodeError(status int, b []byte) error {
 	return &APIError{StatusCode: status, Message: env.Message}
 }
 
+// Unwrap lets errors.As find an APIError through any wrapping. The retry loop
+// depends on this: a bare type assertion stops matching the moment a caller
+// wraps the error, which silently disables retries.
 func asAPIError(err error, target **APIError) bool {
-	if e, ok := err.(*APIError); ok {
-		*target = e
-		return true
-	}
-	return false
+	return errors.As(err, target)
 }
 
 // --- reviews ----------------------------------------------------------------
@@ -317,27 +335,8 @@ func sellerHost(seller string) string {
 }
 
 // getPublic fetches an unauthenticated endpoint. These live on the seller's own
-// subdomain rather than the API host, and must carry no Authorization header.
+// subdomain rather than the API host, so they send no Authorization header —
+// but they meet the same rate limiter, so they retry the same way.
 func (c *Client) getPublic(ctx context.Context, u string, out any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", c.UserAgent)
-
-	resp, err := c.HTTP.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return decodeError(resp.StatusCode, b)
-	}
-	return json.Unmarshal(b, out)
+	return c.retry(ctx, func() error { return c.once(ctx, u, false, out) })
 }
