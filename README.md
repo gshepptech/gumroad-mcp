@@ -1,12 +1,12 @@
-# gloop
+# gumroad-mcp
 
 An MCP server that lets an AI agent run a Gumroad store, and refuses the commands that would wreck it.
 
 It wraps the official [`gumroad` CLI](https://github.com/antiwork/gumroad-cli) rather than reimplementing the API, classifies all 99 of its commands into risk tiers, and withholds the irreversible ones unless you opt in.
 
 ```
-gloop mcp     serve Gumroad to an agent, gated
-gloop         browse the account in the terminal
+gumroad-mcp mcp     serve Gumroad to an agent, gated
+gumroad-mcp         browse the account in the terminal
 ```
 
 ## Why
@@ -17,7 +17,7 @@ Gumroad's CLI ships a good agent skill (`gumroad skill`, ~700 lines). Among its 
 
 That is advice. A model can read it and issue a refund.
 
-gloop takes the other approach: the tool is **not in the list**. An agent cannot argue its way past a command it was never offered. Where a skill file asks for good behaviour, gloop removes the option.
+gumroad-mcp takes the other approach: the tool is **not in the list**. An agent cannot argue its way past a command it was never offered. Where a skill file asks for good behaviour, gumroad-mcp removes the option.
 
 ## Tiers
 
@@ -29,14 +29,14 @@ gloop takes the other approach: the tool is **not in the list**. An agent cannot
 | never proxied | `admin`, `auth token`, `auth login`/`logout`, `skill` | 6 | — |
 
 ```sh
-gloop mcp                 # read + write
-gloop mcp --read-only     # nothing can change the account
-gloop mcp --allow-danger  # adds refunds, deletes, audience sends
+gumroad-mcp mcp                 # read + write
+gumroad-mcp mcp --read-only     # nothing can change the account
+gumroad-mcp mcp --allow-danger  # adds refunds, deletes, audience sends
 ```
 
 Enabling the danger tier is not enough on its own: each call also needs `confirm: true`, so a model has to have been told to do that exact thing.
 
-Run `gloop doctor` to print the live counts.
+Run `gumroad-mcp doctor` to print the live counts.
 
 ### The unit of risk is the flag, not the command
 
@@ -57,7 +57,7 @@ That behaviour is a real defect in the upstream CLI, found while building this a
 
 ### Previews are always allowed
 
-`--dry-run` prints the request the CLI would send and stops. Nothing reaches Gumroad, so gloop treats it as a read under every posture — including `--read-only`, and including commands it would otherwise refuse. Refusing the preview would only push a caller towards running the real thing blind.
+`--dry-run` prints the request the CLI would send and stops. Nothing reaches Gumroad, so gumroad-mcp treats it as a read under every posture — including `--read-only`, and including commands it would otherwise refuse. Refusing the preview would only push a caller towards running the real thing blind.
 
 ### The allowlist is strict
 
@@ -66,20 +66,20 @@ A command missing from the policy is refused. When Gumroad ships a new subcomman
 ## Install
 
 ```sh
-brew install antiwork/cli/gumroad     # gloop drives this
-go install github.com/gshepptech/gloop/cmd/gloop@latest
-gumroad auth login                    # gloop shares the session; it stores no credential
-gloop doctor
+brew install antiwork/cli/gumroad     # gumroad-mcp drives this
+go install github.com/gshepptech/gumroad-mcp/cmd/gumroad-mcp@latest
+gumroad auth login                    # gumroad-mcp shares the session; it stores no credential
+gumroad-mcp doctor
 ```
 
 ## Use it
 
 ```sh
-claude mcp add gumroad -- gloop mcp
+claude mcp add gumroad -- gumroad-mcp mcp
 ```
 
 ```json
-{"mcpServers": {"gumroad": {"command": "gloop", "args": ["mcp"]}}}
+{"mcpServers": {"gumroad": {"command": "gumroad-mcp", "args": ["mcp"]}}}
 ```
 
 | Tool | Purpose |
@@ -93,31 +93,48 @@ claude mcp add gumroad -- gloop mcp
 | `gumroad_tax_forms` | 1099s — no CLI command exists. |
 | `gumroad_public_product` / `_profile` | Any seller's public data, unauthenticated. |
 
-gloop appends `--json --no-input --quiet` to every call, and `--yes` only once the gate has passed. A caller that tries to pass those itself is refused.
+gumroad-mcp appends `--json --no-input --quiet` to every call, and `--yes` only once the gate has passed. A caller that tries to pass those itself is refused.
 
 ## Terminal interface
 
 ```sh
-gloop
+gumroad-mcp
 ```
 
 Read-only tabs across Products, Sales, Subscribers, Emails and Payouts, over the same CLI. `↑↓` move, `enter` opens a record, `tab` switches section, `s` on a product shows its subscribers, `q` quits.
 
-## What gloop does not do
+## What gumroad-mcp does not do
 
-No product CRUD, uploads, offer codes or emails of its own — that is `gumroad`'s job, and it does it better than a second client would. gloop only decides whether an agent may ask.
+No product CRUD, uploads, offer codes or emails of its own — that is `gumroad`'s job, and it does it better than a second client would. gumroad-mcp only decides whether an agent may ask.
+
+## Reusing the gate
+
+The classification machinery is a separate package with no Gumroad in it:
+
+```go
+policy := gate.MustPolicy(commands, gate.WithPreviewFlags("--dry-run"))
+d := policy.Classify(argv, readOnly, allowDanger)
+if !d.Allowed {
+    return errors.New(d.Reason)  // written for a model to act on
+}
+```
+
+`internal/gumroadcli` is the adapter — the command table plus which flags to force, which flag confirms, and how to read the CLI's error envelope. Supporting a different tool means writing a sibling of that file.
+
+Be warned that Gumroad's CLI is unusually well behaved: uniform `--json`, uniform `--dry-run`, a machine-readable error envelope. `gh`, `kubectl` and `docker` have none of those globally, so an adapter for them is real work rather than a table.
 
 ## Layout
 
 ```
-internal/gum/       the runner and the tier policy   ← the actual product
+pkg/gate/          the SDK: tiers, policy, gate, runner   ← reusable
+internal/gumroadcli/ the Gumroad adapter: command table + runner config
 internal/mcpsrv/    MCP tools and the confirmation gate
 internal/tui/       bubbletea interface
 internal/gumroad/   the four endpoints the CLI lacks
 internal/cli/       mcp / tui / doctor
 ```
 
-[`internal/gum/policy.go`](internal/gum/policy.go) is the file worth reading. It is the single place deciding what an agent can reach, and every irreversible classification carries a written reason that the model is shown when refused.
+[`internal/gumroadcli/gumroadcli.go`](internal/gumroadcli/gumroadcli.go) is the file worth reading. It is the single place deciding what an agent can reach, and every irreversible classification carries a written reason that the model is shown when refused.
 
 ```sh
 make check   # fmt, vet, test

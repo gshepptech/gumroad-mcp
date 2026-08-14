@@ -7,14 +7,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gshepptech/gloop/internal/gum"
+	"github.com/gshepptech/gumroad-mcp/internal/gumroadcli"
+	"github.com/gshepptech/gumroad-mcp/pkg/gate"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // stubCLI writes a fake `gumroad` that records the argv it was called with and
 // prints a success envelope. Tests assert on the recorded argv, so nothing
 // reaches the real Gumroad API.
-func stubCLI(t *testing.T) (*gum.Runner, func() []string) {
+func stubCLI(t *testing.T) (*gate.Runner, func() []string) {
 	t.Helper()
 	dir := t.TempDir()
 	log := filepath.Join(dir, "argv.log")
@@ -40,10 +41,12 @@ func stubCLI(t *testing.T) (*gum.Runner, func() []string) {
 		}
 		return out
 	}
-	return &gum.Runner{Path: bin}, calls
+	r := gumroadcli.NewRunner()
+	r.Bin = bin
+	return r, calls
 }
 
-func connect(t *testing.T, r *gum.Runner, opts Options) *mcp.ClientSession {
+func connect(t *testing.T, r *gate.Runner, opts Options) *mcp.ClientSession {
 	t.Helper()
 	srv := New(r, nil, opts)
 	ct, st := mcp.NewInMemoryTransports()
@@ -283,7 +286,9 @@ func TestCLIFailureSurfacesAsToolError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sess := connect(t, &gum.Runner{Path: bin}, Options{})
+	r := gumroadcli.NewRunner()
+	r.Bin = bin
+	sess := connect(t, r, Options{})
 	res := call(t, sess, "gumroad_run", map[string]any{"command": []string{"products", "list"}})
 	if !res.IsError {
 		t.Fatal("a failing CLI call was reported as success")

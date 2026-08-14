@@ -9,11 +9,11 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/gshepptech/gloop/internal/gum"
+	"github.com/gshepptech/gumroad-mcp/pkg/gate"
 )
 
 // Run starts the interactive interface and blocks until the user quits.
-func Run(ctx context.Context, api *gum.Runner) error {
+func Run(ctx context.Context, api *gate.Runner) error {
 	m := newModel(ctx, api)
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithContext(ctx))
 	_, err := p.Run()
@@ -59,7 +59,7 @@ func (t tab) emptyHint() string {
 
 type model struct {
 	ctx context.Context
-	api *gum.Runner
+	api *gate.Runner
 
 	tab     tab
 	width   int
@@ -92,7 +92,7 @@ type model struct {
 	loaded [numTabs]bool
 }
 
-func newModel(ctx context.Context, api *gum.Runner) *model {
+func newModel(ctx context.Context, api *gate.Runner) *model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = accentStyle

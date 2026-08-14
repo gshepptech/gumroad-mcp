@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/gshepptech/gloop/internal/gum"
+	"github.com/gshepptech/gumroad-mcp/pkg/gate"
 )
 
 // The TUI reads everything through the official CLI's `--json` output, so these
@@ -136,7 +136,7 @@ type Account struct {
 // --- fetchers ----------------------------------------------------------------
 
 // fetch runs a CLI command and decodes the value under key.
-func fetch[T any](ctx context.Context, r *gum.Runner, key string, args ...string) ([]T, error) {
+func fetch[T any](ctx context.Context, r *gate.Runner, key string, args ...string) ([]T, error) {
 	raw, err := r.Run(ctx, args...)
 	if err != nil {
 		return nil, err
@@ -156,7 +156,7 @@ func fetch[T any](ctx context.Context, r *gum.Runner, key string, args ...string
 	return items, nil
 }
 
-func fetchAccount(ctx context.Context, r *gum.Runner) (*Account, error) {
+func fetchAccount(ctx context.Context, r *gate.Runner) (*Account, error) {
 	raw, err := r.Run(ctx, "auth", "status")
 	if err != nil {
 		return nil, err
@@ -174,22 +174,22 @@ func fetchAccount(ctx context.Context, r *gum.Runner) (*Account, error) {
 	return &env.User, nil
 }
 
-func fetchProducts(ctx context.Context, r *gum.Runner) ([]Product, error) {
+func fetchProducts(ctx context.Context, r *gate.Runner) ([]Product, error) {
 	return fetch[Product](ctx, r, "products", "products", "list")
 }
 
-func fetchSales(ctx context.Context, r *gum.Runner) ([]Sale, error) {
+func fetchSales(ctx context.Context, r *gate.Runner) ([]Sale, error) {
 	return fetch[Sale](ctx, r, "sales", "sales", "list")
 }
 
-func fetchSubscribers(ctx context.Context, r *gum.Runner, productID string) ([]Subscriber, error) {
+func fetchSubscribers(ctx context.Context, r *gate.Runner, productID string) ([]Subscriber, error) {
 	return fetch[Subscriber](ctx, r, "subscribers", "subscribers", "list", "--product", productID)
 }
 
-func fetchEmails(ctx context.Context, r *gum.Runner) ([]Email, error) {
+func fetchEmails(ctx context.Context, r *gate.Runner) ([]Email, error) {
 	return fetch[Email](ctx, r, "emails", "emails", "list")
 }
 
-func fetchPayouts(ctx context.Context, r *gum.Runner) ([]Payout, error) {
+func fetchPayouts(ctx context.Context, r *gate.Runner) ([]Payout, error) {
 	return fetch[Payout](ctx, r, "payouts", "payouts", "list")
 }

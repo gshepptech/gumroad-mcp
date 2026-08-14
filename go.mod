@@ -1,4 +1,4 @@
-module github.com/gshepptech/gloop
+module github.com/gshepptech/gumroad-mcp
 
 go 1.26.1
 

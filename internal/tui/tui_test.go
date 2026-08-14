@@ -7,14 +7,15 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/gshepptech/gloop/internal/gum"
+	"github.com/gshepptech/gumroad-mcp/internal/gumroadcli"
+	"github.com/gshepptech/gumroad-mcp/pkg/gate"
 )
 
 // sized returns a model that has been through the resize the terminal would
 // send on startup, which is what allocates the table.
 func sized(t *testing.T) *model {
 	t.Helper()
-	m := newModel(context.Background(), &gum.Runner{})
+	m := newModel(context.Background(), &gate.Runner{})
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	return m
 }
@@ -173,7 +174,7 @@ func TestSubscribersNeedAProductFirst(t *testing.T) {
 
 func TestErrorPaneExplainsAuthFailures(t *testing.T) {
 	m := sized(t)
-	m.Update(errMsg{&gum.Error{Type: "auth_error", Code: "not_authenticated", Message: "Bad token"}})
+	m.Update(errMsg{&gumroadcli.Error{Type: "auth_error", Code: "not_authenticated", Message: "Bad token"}})
 	v := m.View()
 	if !strings.Contains(v, "Bad token") {
 		t.Errorf("error pane lost the message:\n%s", v)
@@ -198,7 +199,7 @@ func TestStripTags(t *testing.T) {
 }
 
 func TestNarrowTerminalDoesNotPanic(t *testing.T) {
-	m := newModel(context.Background(), &gum.Runner{})
+	m := newModel(context.Background(), &gate.Runner{})
 	for _, size := range []tea.WindowSizeMsg{
 		{Width: 20, Height: 5}, {Width: 1, Height: 1}, {Width: 200, Height: 60},
 	} {

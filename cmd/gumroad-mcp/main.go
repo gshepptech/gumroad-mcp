@@ -11,7 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/gshepptech/gloop/internal/cli"
+	"github.com/gshepptech/gumroad-mcp/internal/cli"
 )
 
 func main() {

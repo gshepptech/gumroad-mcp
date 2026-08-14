@@ -38,7 +38,7 @@ type Client struct {
 }
 
 // New returns a Client for the given access token, which callers get from
-// gum.Runner.Token.
+// gate.Runner.Token.
 func New(token string) *Client {
 	return &Client{
 		Token:     token,

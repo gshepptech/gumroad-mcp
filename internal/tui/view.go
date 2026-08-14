@@ -7,7 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/gshepptech/gloop/internal/gum"
+	"github.com/gshepptech/gumroad-mcp/internal/gumroadcli"
 )
 
 var (
@@ -103,7 +103,7 @@ func (m *model) errorPane() string {
 	b.WriteString(errStyle.Render("  Something went wrong") + "\n\n")
 	b.WriteString("  " + m.err.Error() + "\n")
 
-	var gerr *gum.Error
+	var gerr *gumroadcli.Error
 	if errors.As(m.err, &gerr) {
 		switch {
 		case gerr.NeedsAuth():

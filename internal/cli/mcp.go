@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gshepptech/gloop/internal/gum"
-	"github.com/gshepptech/gloop/internal/gumroad"
-	"github.com/gshepptech/gloop/internal/mcpsrv"
+	"github.com/gshepptech/gumroad-mcp/internal/gumroad"
+	"github.com/gshepptech/gumroad-mcp/internal/gumroadcli"
+	"github.com/gshepptech/gumroad-mcp/internal/mcpsrv"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 )
@@ -61,7 +61,7 @@ func newMCPCmd() *cobra.Command {
 			// CLI's token so gloop stores no credential of its own. Losing it
 			// is not fatal: the proxied commands are the important ones.
 			var api *gumroad.Client
-			if tok, err := r.Token(ctx); err == nil {
+			if tok, err := gumroadcli.Token(ctx, r); err == nil {
 				api = gumroad.New(tok)
 			} else {
 				fmt.Fprintf(os.Stderr,
@@ -73,7 +73,7 @@ func newMCPCmd() *cobra.Command {
 				AllowDanger: allowDanger,
 			})
 
-			read, write, danger, _ := gum.Counts()
+			read, write, danger, _ := gumroadcli.Policy.Counts()
 			mode := fmt.Sprintf("%d read + %d write", read, write)
 			switch {
 			case readOnly:

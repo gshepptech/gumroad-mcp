@@ -13,7 +13,8 @@ import (
 	"os"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/gshepptech/gloop/internal/gum"
+	"github.com/gshepptech/gumroad-mcp/internal/gumroadcli"
+	"github.com/gshepptech/gumroad-mcp/pkg/gate"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +37,7 @@ func Run(c context.Context) int {
 		}
 		fmt.Fprintln(os.Stderr, styleErr.Render("error: ")+err.Error())
 
-		var gerr *gum.Error
+		var gerr *gumroadcli.Error
 		if errors.As(err, &gerr) && gerr.NeedsAuth() {
 			fmt.Fprintln(os.Stderr, styleDim.Render("  run: gumroad auth login"))
 		}
@@ -68,8 +69,14 @@ func newRoot() *cobra.Command {
 }
 
 // runner resolves the official CLI, or explains how to install it.
-func runner() (*gum.Runner, error) {
-	return gum.New()
+func runner() (*gate.Runner, error) {
+	r := gumroadcli.NewRunner()
+	path, err := r.Lookup()
+	if err != nil {
+		return nil, gumroadcli.NotInstalled
+	}
+	r.Bin = path
+	return r, nil
 }
 
 func newDoctorCmd() *cobra.Command {
@@ -87,9 +94,9 @@ func newDoctorCmd() *cobra.Command {
 				fmt.Fprintf(os.Stdout, "%s Gumroad CLI not found\n\n%v\n", styleErr.Render("✗"), err)
 				return errors.New("the Gumroad CLI is required")
 			}
-			fmt.Fprintf(os.Stdout, "%s gumroad found at %s\n", styleOK.Render("✓"), r.Path)
+			fmt.Fprintf(os.Stdout, "%s gumroad found at %s\n", styleOK.Render("✓"), r.Bin)
 
-			ver, err := r.Version(ctx)
+			ver, err := gumroadcli.Version(ctx, r)
 			if err != nil {
 				fmt.Fprintf(os.Stdout, "%s could not read its version: %v\n", styleErr.Render("✗"), err)
 				return err
@@ -102,7 +109,7 @@ func newDoctorCmd() *cobra.Command {
 			}
 			fmt.Fprintf(os.Stdout, "%s authenticated\n", styleOK.Render("✓"))
 
-			read, write, danger, forbidden := gum.Counts()
+			read, write, danger, forbidden := gumroadcli.Policy.Counts()
 			fmt.Fprintf(os.Stdout, "\n%s\n", styleTitle.Render("policy"))
 			fmt.Fprintf(os.Stdout, "  %d read  %d write  %d irreversible  %d never proxied\n",
 				read, write, danger, forbidden)

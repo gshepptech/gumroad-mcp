@@ -3,7 +3,7 @@ package cli
 import (
 	"context"
 
-	"github.com/gshepptech/gloop/internal/tui"
+	"github.com/gshepptech/gumroad-mcp/internal/tui"
 	"github.com/spf13/cobra"
 )
 

@@ -20,8 +20,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gshepptech/gloop/internal/gum"
-	"github.com/gshepptech/gloop/internal/gumroad"
+	"github.com/gshepptech/gumroad-mcp/internal/gumroad"
+	"github.com/gshepptech/gumroad-mcp/internal/gumroadcli"
+	"github.com/gshepptech/gumroad-mcp/pkg/gate"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -39,14 +40,14 @@ type Options struct {
 
 type registry struct {
 	server *mcp.Server
-	run    *gum.Runner
+	run    *gate.Runner
 	api    *gumroad.Client // for the few endpoints the CLI does not cover
 	opts   Options
 }
 
 // New builds the MCP server. api may be nil, in which case the tools covering
 // endpoints the official CLI lacks are not registered.
-func New(run *gum.Runner, api *gumroad.Client, opts Options) *mcp.Server {
+func New(run *gate.Runner, api *gumroad.Client, opts Options) *mcp.Server {
 	srv := mcp.NewServer(&mcp.Implementation{
 		Name:    "gloop",
 		Title:   "Gumroad",
@@ -116,9 +117,9 @@ func registerProxy(r *registry) {
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		var b strings.Builder
 		fmt.Fprintf(&b, "Commands available on this server (posture: %s)\n\n", posture(r.opts))
-		for _, c := range gum.Available(r.opts.ReadOnly, r.opts.AllowDanger) {
+		for _, c := range gumroadcli.Policy.Available(r.opts.ReadOnly, r.opts.AllowDanger) {
 			fmt.Fprintf(&b, "  %-30s %s", c.Name(), c.Tier)
-			if c.Tier == gum.Danger {
+			if c.Tier == gate.Danger {
 				b.WriteString("  (needs confirm=true)")
 			}
 			b.WriteString("\n")
@@ -134,7 +135,7 @@ func registerProxy(r *registry) {
 			"command you have not run before.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
-		skill, err := r.run.Skill(ctx)
+		skill, err := gumroadcli.Skill(ctx, r.run)
 		if err != nil {
 			return textResult("", err), nil, nil
 		}
@@ -151,7 +152,7 @@ func registerProxy(r *registry) {
 	}) (*mcp.CallToolResult, any, error) {
 		// Help is documentation, not an operation, so it is not tier-gated —
 		// but it must not become a way to probe the blocked admin surface.
-		if d := gum.Classify(in.Command, false, true); len(in.Command) > 0 && !d.Allowed {
+		if d := gumroadcli.Policy.Classify(in.Command, false, true); len(in.Command) > 0 && !d.Allowed {
 			return textResult("", fmt.Errorf("%s", d.Reason)), nil, nil
 		}
 		out, err := r.run.Text(ctx, append(in.Command, "--help")...)
@@ -177,7 +178,7 @@ func (r *registry) exec(ctx context.Context, in runArgs) (string, error) {
 		}
 	}
 
-	d := gum.Classify(in.Command, r.opts.ReadOnly, r.opts.AllowDanger)
+	d := gumroadcli.Policy.Classify(in.Command, r.opts.ReadOnly, r.opts.AllowDanger)
 	if !d.Allowed {
 		return "", fmt.Errorf("refused: %s", d.Reason)
 	}
@@ -185,11 +186,11 @@ func (r *registry) exec(ctx context.Context, in runArgs) (string, error) {
 	args := append([]string{}, in.Command...)
 
 	switch {
-	case d.DryRun:
+	case d.Preview:
 		// The CLI prints the request and stops, so there is nothing to confirm
 		// and appending --yes would only muddy what ran.
 
-	case d.Tier == gum.Danger:
+	case d.Tier == gate.Danger:
 		if !in.Confirm {
 			return "", fmt.Errorf(
 				"refused: `gumroad %s` cannot be undone — %s. Add --dry-run to see the request it "+
@@ -199,7 +200,7 @@ func (r *registry) exec(ctx context.Context, in runArgs) (string, error) {
 		}
 		args = append(args, "--yes")
 
-	case d.Tier == gum.Write:
+	case d.Tier == gate.Write:
 		// Writes are reversible from the dashboard, and --no-input turns any
 		// prompt into a failure, so auto-confirm them rather than dead-ending.
 		args = append(args, "--yes")
@@ -210,7 +211,7 @@ func (r *registry) exec(ctx context.Context, in runArgs) (string, error) {
 		timeout = 30 * time.Minute
 	}
 
-	out, err := r.run.RunLong(ctx, timeout, args...)
+	out, err := r.run.RunTimeout(ctx, timeout, args...)
 	if err != nil {
 		return "", err
 	}
@@ -324,7 +325,7 @@ func registerNative(r *registry) {
 func textResult(out string, err error) *mcp.CallToolResult {
 	if err != nil {
 		msg := err.Error()
-		var gerr *gum.Error
+		var gerr *gumroadcli.Error
 		if asGum(err, &gerr) && gerr.NeedsAuth() {
 			msg += "\n\nThe Gumroad CLI is not logged in. A human needs to run `gumroad auth login`."
 		}
@@ -360,6 +361,6 @@ func posture(o Options) string {
 
 func ptr[T any](v T) *T { return &v }
 
-func asGum(err error, target **gum.Error) bool {
+func asGum(err error, target **gumroadcli.Error) bool {
 	return errors.As(err, target)
 }

@@ -1,7 +1,7 @@
-BINARY  := gloop
-PKG     := ./cmd/gloop
+BINARY  := gumroad-mcp
+PKG     := ./cmd/gumroad-mcp
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS := -s -w -X github.com/gshepptech/gloop/internal/cli.Version=$(VERSION)
+LDFLAGS := -s -w -X github.com/gshepptech/gumroad-mcp/internal/cli.Version=$(VERSION)
 
 .PHONY: build install test check fmt vet clean
 
