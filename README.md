@@ -17,7 +17,7 @@ Gumroad's CLI ships a good agent skill (`gumroad skill`, ~700 lines). Among its 
 
 That is advice. A model can read it and issue a refund.
 
-gumroad-mcp takes the other approach: the tool is **not in the list**. An agent cannot argue its way past a command it was never offered. Where a skill file asks for good behaviour, gumroad-mcp removes the option.
+gumroad-mcp keeps the tool out of the list entirely. An agent cannot argue its way past a command it was never offered.
 
 ## Tiers
 
@@ -26,7 +26,7 @@ gumroad-mcp takes the other approach: the tool is **not in the list**. An agent 
 | read | cannot change anything | 43 | on |
 | write | undoable from the Gumroad dashboard | 31 | on |
 | danger | irreversible, moves money, or reaches a customer | 25 | **off** |
-| never proxied | `admin`, `auth token`, `auth login`/`logout`, `skill` | 6 | — |
+| never proxied | `admin`, `auth token`, `auth login`/`logout`, `skill` | 6 | n/a |
 
 ```sh
 gumroad-mcp mcp                 # read + write
@@ -38,9 +38,9 @@ Enabling the danger tier is not enough on its own: each call also needs `confirm
 
 Run `gumroad-mcp doctor` to print the live counts.
 
-### The unit of risk is the flag, not the command
+### Flags change the blast radius
 
-`products update --name "New name"` is an ordinary edit. `products update --file ./new.zip` rewrites the product's content page to embed only the new upload, orphaning the file buyers already download — with no version history. Same command, completely different blast radius.
+`products update --name "New name"` is an ordinary edit. `products update --file ./new.zip` rewrites the product's content page to embed only the new upload, orphaning the file buyers already download, and rich content has no version history.
 
 So commands can name flags that promote them:
 
@@ -57,7 +57,7 @@ That behaviour is a real defect in the upstream CLI, found while building this a
 
 ### Previews are always allowed
 
-`--dry-run` prints the request the CLI would send and stops. Nothing reaches Gumroad, so gumroad-mcp treats it as a read under every posture — including `--read-only`, and including commands it would otherwise refuse. Refusing the preview would only push a caller towards running the real thing blind.
+`--dry-run` prints the request the CLI would send and stops. Nothing reaches Gumroad, so gumroad-mcp treats it as a read under every posture, including `--read-only` and commands it would otherwise refuse. Refusing the preview would only push a caller towards running the real thing blind.
 
 ### The allowlist is strict
 
@@ -88,9 +88,9 @@ claude mcp add gumroad -- gumroad-mcp mcp
 | `gumroad_skill` | Gumroad's own reference for every command. |
 | `gumroad_help` | A command's `--help`, for exact flags. |
 | `gumroad_commands` | What this server will run, with tiers. |
-| `gumroad_reviews` | Product reviews — no CLI command exists. |
-| `gumroad_earnings` | Tax Center annual earnings — no CLI command exists. |
-| `gumroad_tax_forms` | 1099s — no CLI command exists. |
+| `gumroad_reviews` | Product reviews. No CLI command exists. |
+| `gumroad_earnings` | Tax Center annual earnings. No CLI command exists. |
+| `gumroad_tax_forms` | 1099s. No CLI command exists. |
 | `gumroad_public_product` / `_profile` | Any seller's public data, unauthenticated. |
 
 gumroad-mcp appends `--json --no-input --quiet` to every call, and `--yes` only once the gate has passed. A caller that tries to pass those itself is refused.
@@ -105,7 +105,7 @@ Read-only tabs across Products, Sales, Subscribers, Emails and Payouts, over the
 
 ## What gumroad-mcp does not do
 
-No product CRUD, uploads, offer codes or emails of its own — that is `gumroad`'s job, and it does it better than a second client would. gumroad-mcp only decides whether an agent may ask.
+No product CRUD, uploads, offer codes or emails of its own. That is `gumroad`'s job. gumroad-mcp only decides whether an agent may ask.
 
 ## Reusing the gate
 
@@ -119,9 +119,9 @@ if !d.Allowed {
 }
 ```
 
-`internal/gumroadcli` is the adapter — the command table plus which flags to force, which flag confirms, and how to read the CLI's error envelope. Supporting a different tool means writing a sibling of that file.
+`internal/gumroadcli` is the adapter: the command table plus which flags to force, which flag confirms, and how to read the CLI's error envelope. Supporting a different tool means writing a sibling of that file.
 
-Be warned that Gumroad's CLI is unusually well behaved: uniform `--json`, uniform `--dry-run`, a machine-readable error envelope. `gh`, `kubectl` and `docker` have none of those globally, so an adapter for them is real work rather than a table.
+Be warned that Gumroad's CLI is unusually well behaved: uniform `--json`, uniform `--dry-run`, a machine-readable error envelope. `gh`, `kubectl` and `docker` have none of those globally, so an adapter for them means writing parsing code, not filling in a table.
 
 ## Layout
 
@@ -134,7 +134,7 @@ internal/gumroad/   the four endpoints the CLI lacks
 internal/cli/       mcp / tui / doctor
 ```
 
-[`internal/gumroadcli/gumroadcli.go`](internal/gumroadcli/gumroadcli.go) is the file worth reading. It is the single place deciding what an agent can reach, and every irreversible classification carries a written reason that the model is shown when refused.
+[`internal/gumroadcli/gumroadcli.go`](internal/gumroadcli/gumroadcli.go) holds every classification. It is the single place deciding what an agent can reach, and each irreversible entry carries the reason the model is shown when refused.
 
 ```sh
 make check   # fmt, vet, test

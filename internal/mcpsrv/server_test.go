@@ -200,7 +200,7 @@ func TestReadOnlyRefusesWrites(t *testing.T) {
 	}
 }
 
-// TestCallerCannotSmuggleFlags: gloop owns --json/--no-input/--quiet, and --yes
+// TestCallerCannotSmuggleFlags: gumroad-mcp owns --json/--no-input/--quiet, and --yes
 // is the whole point of the gate, so accepting either from the model would
 // hand it the bypass.
 func TestCallerCannotSmuggleFlags(t *testing.T) {
@@ -303,7 +303,7 @@ func TestCLIFailureSurfacesAsToolError(t *testing.T) {
 }
 
 // TestDryRunRunsWithoutConfirmAndWithoutYes covers the fix for a real defect:
-// gloop used to refuse `products content set --dry-run` outright, even though a
+// gumroad-mcp used to refuse `products content set --dry-run` outright, even though a
 // dry run sends nothing to Gumroad.
 func TestDryRunRunsWithoutConfirmAndWithoutYes(t *testing.T) {
 	r, calls := stubCLI(t)

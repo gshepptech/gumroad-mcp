@@ -181,7 +181,7 @@ func TestAvailableRespectsPosture(t *testing.T) {
 
 // TestPolicyCoversTheInstalledCLI reports commands the installed `gumroad` has
 // that the policy does not classify. An unclassified command is refused, which
-// is safe but invisible — this test is how a maintainer notices upstream grew.
+// is safe but invisible. This test is how a maintainer notices upstream grew.
 //
 // It skips when the CLI is absent, so it does not fail on a machine without it.
 func TestPolicyCoversTheInstalledCLI(t *testing.T) {
@@ -276,7 +276,7 @@ func TestDryRunDowngradesToRead(t *testing.T) {
 }
 
 // TestDryRunDoesNotOpenTheForbiddenTier: previewing an admin command still
-// exposes the surface gloop refuses to expose at all.
+// exposes the surface gumroad-mcp refuses to expose at all.
 func TestDryRunDoesNotOpenTheForbiddenTier(t *testing.T) {
 	for _, argv := range [][]string{
 		{"admin", "users", "suspend", "--dry-run"},
@@ -371,7 +371,7 @@ func TestPairedCommandsShareATier(t *testing.T) {
 			t.Fatalf("policy is missing %q or %q", p[0], p[1])
 		}
 		if a.Tier != b.Tier {
-			t.Errorf("%q is %s but %q is %s — both replace or remove a live page "+
+			t.Errorf("%q is %s but %q is %s. Both replace or remove a live page "+
 				"with no version history, so they cannot differ", p[0], a.Tier, p[1], b.Tier)
 		}
 	}

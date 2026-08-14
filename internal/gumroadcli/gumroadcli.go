@@ -170,7 +170,7 @@ var Commands = []gate.Command{
 	// --- audience ---------------------------------------------------------
 	{Path: []string{"emails", "list"}, Tier: gate.Read},
 	{Path: []string{"emails", "view"}, Tier: gate.Read},
-	{Path: []string{"emails", "create"}, Tier: gate.Write, Why: "drafts only — sending is a separate, gated step"},
+	{Path: []string{"emails", "create"}, Tier: gate.Write, Why: "drafts only; sending is a separate, gated step"},
 	{Path: []string{"emails", "send-preview"}, Tier: gate.Write, Why: "reaches the seller's own inbox only"},
 	{Path: []string{"emails", "send"}, Tier: gate.Danger, Why: "blasts the seller's whole audience and cannot be recalled"},
 	{Path: []string{"emails", "delete"}, Tier: gate.Danger, Why: "permanently deletes an audience email"},
@@ -189,7 +189,7 @@ var Commands = []gate.Command{
 	{Path: []string{"webhooks", "delete"}, Tier: gate.Write, Why: "recreating a subscription is trivial"},
 
 	// --- never proxied ----------------------------------------------------
-	{Path: []string{"admin"}, Tier: gate.Forbidden, Why: "internal admin API — suspends users, refunds balances, issues credits"},
+	{Path: []string{"admin"}, Tier: gate.Forbidden, Why: "internal admin API: suspends users, refunds balances, issues credits"},
 	{Path: []string{"skill"}, Tier: gate.Forbidden, Why: "writes files outside the Gumroad account; read it with gumroad_skill instead"},
 	{Path: []string{"completion"}, Tier: gate.Forbidden, Why: "shell plumbing, not a Gumroad operation"},
 }
@@ -219,7 +219,7 @@ func NewRunner() *gate.Runner {
 }
 
 // OwnedFlags are the flags this adapter supplies itself. A caller passing one
-// is refused rather than silently duplicated — and --yes in particular is the
+// is refused rather than silently duplicated. --yes in particular is the
 // whole point of the gate, so accepting it from a model would hand over the
 // bypass.
 var OwnedFlags = []string{"--json", "--no-input", "--quiet", "--yes", "-y"}
@@ -294,7 +294,7 @@ func Token(ctx context.Context, r *gate.Runner) (string, error) {
 		return "", fmt.Errorf("could not read the Gumroad CLI's token (run `gumroad auth login`): %w", err)
 	}
 	if tok == "" {
-		return "", errors.New("the Gumroad CLI has no token — run `gumroad auth login`")
+		return "", errors.New("the Gumroad CLI has no token. Run `gumroad auth login`")
 	}
 	return tok, nil
 }
@@ -310,7 +310,7 @@ func Version(ctx context.Context, r *gate.Runner) (string, error) {
 
 // NotInstalled explains how to get the CLI this adapter requires.
 var NotInstalled = errors.New(
-	"the Gumroad CLI is not installed — gumroad-mcp drives it.\n" +
+	"the Gumroad CLI is not installed. gumroad-mcp drives it.\n" +
 		"  install: brew install antiwork/cli/gumroad\n" +
 		"       or: curl -fsSL https://gumroad.com/install-cli.sh | bash")
 

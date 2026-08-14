@@ -21,9 +21,10 @@ func newMCPCmd() *cobra.Command {
 		Use:   "mcp",
 		Short: "Serve Gumroad to an AI agent over MCP (stdio)",
 		Long: "Run an MCP server on stdin/stdout so an AI agent can work a Gumroad account.\n\n" +
-			"gloop proxies the official `gumroad` CLI, so the agent reaches its whole surface —\n" +
+			"gumroad-mcp proxies the official `gumroad` CLI, so the agent reaches its whole\n" +
+			"surface:\n" +
 			"products, sales, subscribers, licences, files, media, storefront pages, upsells,\n" +
-			"audience emails, workflows, webhooks and payouts — plus the few endpoints that CLI\n" +
+			"audience emails, workflows, webhooks and payouts, plus the few endpoints that CLI\n" +
 			"does not cover (reviews, tax forms, earnings, public product and profile data).\n\n" +
 			"Every command is classified into a tier:\n" +
 			"  read    cannot change anything\n" +
@@ -33,10 +34,10 @@ func newMCPCmd() *cobra.Command {
 			"confirm=true on each call. Gumroad's own agent skill tells models to pass --yes on\n" +
 			"deletes and refunds; withholding the command is the part a model cannot talk past.\n\n" +
 			"Register it with Claude Code:\n" +
-			"  claude mcp add gumroad -- gloop mcp",
-		Example: "  gloop mcp                 # read + write\n" +
-			"  gloop mcp --read-only     # nothing can change the account\n" +
-			"  gloop mcp --allow-danger  # adds refunds, deletes, audience sends",
+			"  claude mcp add gumroad -- gumroad-mcp mcp",
+		Example: "  gumroad-mcp mcp                 # read + write\n" +
+			"  gumroad-mcp mcp --read-only     # nothing can change the account\n" +
+			"  gumroad-mcp mcp --allow-danger  # adds refunds, deletes, audience sends",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if readOnly && allowDanger {
 				return fmt.Errorf("--read-only and --allow-danger contradict each other")
@@ -58,14 +59,14 @@ func newMCPCmd() *cobra.Command {
 			}
 
 			// The API client covers only what the CLI cannot, and borrows the
-			// CLI's token so gloop stores no credential of its own. Losing it
+			// CLI's token so gumroad-mcp stores no credential of its own. Losing it
 			// is not fatal: the proxied commands are the important ones.
 			var api *gumroad.Client
 			if tok, err := gumroadcli.Token(ctx, r); err == nil {
 				api = gumroad.New(tok)
 			} else {
 				fmt.Fprintf(os.Stderr,
-					"gloop: could not read the CLI token, so reviews/tax/earnings tools are off (%v)\n", err)
+					"gumroad-mcp: could not read the CLI token, so reviews/tax/earnings tools are off (%v)\n", err)
 			}
 
 			srv := mcpsrv.New(r, api, mcpsrv.Options{
@@ -81,7 +82,7 @@ func newMCPCmd() *cobra.Command {
 			case allowDanger:
 				mode = fmt.Sprintf("%d read + %d write + %d irreversible", read, write, danger)
 			}
-			fmt.Fprintf(os.Stderr, "gloop mcp on stdio — %s\n", mode)
+			fmt.Fprintf(os.Stderr, "gumroad-mcp on stdio: %s\n", mode)
 
 			return srv.Run(ctx, &mcp.StdioTransport{})
 		},

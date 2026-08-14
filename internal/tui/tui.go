@@ -1,5 +1,5 @@
-// Package tui is gloop's interactive terminal interface — the face of the tool
-// for people who would rather not memorise flags.
+// Package tui is the interactive terminal interface, for people who would
+// rather not memorise flags.
 package tui
 
 import (

@@ -1,7 +1,7 @@
 // Package gate decides what an AI agent may run through a command-line tool.
 //
 // An agent skill can tell a model to be careful. A model can read that and
-// proceed anyway — Gumroad's own CLI skill instructs agents to pass `--yes` on
+// proceed anyway. Gumroad's own CLI skill instructs agents to pass `--yes` on
 // deletes and refunds. gate takes the other approach: classify every command a
 // CLI exposes, and withhold the dangerous ones so there is no decision to make.
 // Refusal is structural, and a model cannot instruct its way past it.
@@ -64,7 +64,7 @@ type Command struct {
 	Path []string
 	Tier Tier
 	// Why explains a Danger or Forbidden classification. It is shown to the
-	// model on refusal, so it should say what the damage would be — not
+	// model on refusal, so it should say what the damage would be rather than
 	// restate the rule.
 	Why string
 
@@ -99,7 +99,7 @@ type Option func(*Policy)
 
 // WithPreviewFlags names the flags that make an invocation a preview: the tool
 // prints what it would do and stops. A preview changes nothing, so it is
-// treated as a Read whatever the command's own tier — refusing it would only
+// treated as a Read whatever the command's own tier. Refusing it would only
 // push a caller towards running the real thing unseen.
 //
 // Pass none if the tool has no preview mechanism.
@@ -110,7 +110,7 @@ func WithPreviewFlags(flags ...string) Option {
 // NewPolicy validates and compiles a command table.
 //
 // It rejects duplicates, empty paths, unexplained Danger or Forbidden entries,
-// and DangerFlags without an explanation — all of which produce refusals a
+// and DangerFlags without an explanation, all of which produce refusals a
 // caller cannot act on.
 func NewPolicy(commands []Command, opts ...Option) (*Policy, error) {
 	p := &Policy{

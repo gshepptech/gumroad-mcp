@@ -169,7 +169,7 @@ func fetchAccount(ctx context.Context, r *gate.Runner) (*Account, error) {
 		return nil, err
 	}
 	if !env.Authenticated {
-		return nil, fmt.Errorf("the Gumroad CLI is not logged in — run `gumroad auth login`")
+		return nil, fmt.Errorf("the Gumroad CLI is not logged in. Run `gumroad auth login`")
 	}
 	return &env.User, nil
 }

@@ -1,12 +1,13 @@
 // Package gumroad is a minimal Gumroad API client covering only the endpoints
 // the official `gumroad` CLI does not.
 //
-// Everything the CLI can do, gloop drives through the CLI — see internal/gum.
+// Everything the CLI can do is driven through the CLI itself; see
+// internal/gumroadcli.
 // This package exists for the handful of endpoints with no command: product
 // reviews, Tax Center forms and earnings, and the unauthenticated public
 // product and profile payloads.
 //
-// It authenticates with the token the official CLI already resolved, so gloop
+// It authenticates with the token the official CLI already resolved, so gumroad-mcp
 // never stores a credential of its own.
 package gumroad
 
@@ -44,7 +45,7 @@ func New(token string) *Client {
 		Token:     token,
 		BaseURL:   DefaultBaseURL,
 		HTTP:      &http.Client{Timeout: 30 * time.Second},
-		UserAgent: "gloop",
+		UserAgent: "gumroad-mcp",
 	}
 }
 
@@ -69,7 +70,7 @@ func (e *APIError) Retryable() bool {
 const (
 	// maxAttempts is the initial try plus three retries.
 	maxAttempts = 4
-	// DefaultRetryBase gives 1s, 2s, 4s — enough for a per-minute limiter to refill.
+	// DefaultRetryBase gives 1s, 2s, 4s, enough for a per-minute limiter to refill.
 	DefaultRetryBase = time.Second
 )
 
@@ -335,8 +336,8 @@ func sellerHost(seller string) string {
 }
 
 // getPublic fetches an unauthenticated endpoint. These live on the seller's own
-// subdomain rather than the API host, so they send no Authorization header —
-// but they meet the same rate limiter, so they retry the same way.
+// subdomain rather than the API host, so they send no Authorization header.
+// They meet the same rate limiter, so they retry the same way.
 func (c *Client) getPublic(ctx context.Context, u string, out any) error {
 	return c.retry(ctx, func() error { return c.once(ctx, u, false, out) })
 }

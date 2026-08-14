@@ -1,7 +1,7 @@
-// Package cli builds gloop's command tree.
+// Package cli builds gumroad-mcp's command tree.
 //
-// gloop is deliberately small. Everyday Gumroad work belongs to the official
-// `gumroad` CLI, which gloop drives rather than duplicates. gloop adds two
+// gumroad-mcp is deliberately small. Everyday Gumroad work belongs to the official
+// `gumroad` CLI, which gumroad-mcp drives rather than duplicates. gumroad-mcp adds two
 // things that CLI does not have: an MCP server with a tier policy, and an
 // interactive interface.
 package cli
@@ -48,15 +48,15 @@ func Run(c context.Context) int {
 
 func newRoot() *cobra.Command {
 	root := &cobra.Command{
-		Use:   "gloop",
+		Use:   "gumroad-mcp",
 		Short: "An MCP server and terminal interface for Gumroad",
-		Long: styleTitle.Render("gloop") + " wraps the official Gumroad CLI and adds two things:\n\n" +
-			"  " + styleAccent.Render("gloop mcp") + "     serve Gumroad to an AI agent, with a tier policy\n" +
-			"                deciding what it may invoke\n" +
-			"  " + styleAccent.Render("gloop") + "         browse the account interactively\n\n" +
-			"For everyday commands use " + styleAccent.Render("gumroad") + " directly — it covers more of the\n" +
-			"API than gloop reasonably could, and gloop runs it under the hood.\n\n" +
-			"Authenticate once with " + styleAccent.Render("gumroad auth login") + "; gloop shares that session.",
+		Long: styleTitle.Render("gumroad-mcp") + " wraps the official Gumroad CLI and adds two things:\n\n" +
+			"  " + styleAccent.Render("gumroad-mcp mcp") + "  serve Gumroad to an AI agent, with a tier policy\n" +
+			"                   deciding what it may invoke\n" +
+			"  " + styleAccent.Render("gumroad-mcp") + "      browse the account interactively\n\n" +
+			"For everyday commands use " + styleAccent.Render("gumroad") + " directly. It covers more of the API\n" +
+			"than this does, and runs underneath it either way.\n\n" +
+			"Authenticate once with " + styleAccent.Render("gumroad auth login") + "; gumroad-mcp shares that session.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Version:       Version,
@@ -82,7 +82,7 @@ func runner() (*gate.Runner, error) {
 func newDoctorCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "doctor",
-		Short: "Check that gloop can drive the Gumroad CLI",
+		Short: "Check that gumroad-mcp can drive the Gumroad CLI",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			if ctx == nil {

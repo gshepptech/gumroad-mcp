@@ -1,14 +1,14 @@
 // Package mcpsrv exposes the Gumroad CLI to an AI agent over MCP, with a tier
 // policy deciding what the agent may invoke.
 //
-// gloop does not reimplement the Gumroad API. The official `gumroad` CLI
+// gumroad-mcp does not reimplement the Gumroad API. The official `gumroad` CLI
 // already covers more of it than a second client could, and its embedded
-// SKILL.md documents every command. gloop proxies that CLI and adds the one
+// SKILL.md documents every command. gumroad-mcp proxies that CLI and adds the one
 // thing a skill file cannot provide: refusal.
 //
 // A skill can tell a model to be careful. A model can read that and proceed
-// anyway — the official SKILL.md literally instructs agents to pass `--yes` on
-// deletes and refunds. gloop withholds the command instead, which is not
+// anyway. The official SKILL.md instructs agents to pass `--yes` on
+// deletes and refunds. gumroad-mcp withholds the command instead, which is not
 // advice the model can argue with.
 package mcpsrv
 
@@ -49,7 +49,7 @@ type registry struct {
 // endpoints the official CLI lacks are not registered.
 func New(run *gate.Runner, api *gumroad.Client, opts Options) *mcp.Server {
 	srv := mcp.NewServer(&mcp.Implementation{
-		Name:    "gloop",
+		Name:    "gumroad-mcp",
 		Title:   "Gumroad",
 		Version: Version,
 	}, &mcp.ServerOptions{Instructions: instructions(opts)})
@@ -64,14 +64,14 @@ func instructions(o Options) string {
 	var b strings.Builder
 	b.WriteString(
 		"Drives a Gumroad seller account through the official `gumroad` CLI.\n\n" +
-			"Start by calling gumroad_skill once — it returns Gumroad's own reference for every\n" +
+			"Start by calling gumroad_skill once. It returns Gumroad's own reference for every\n" +
 			"command, including exact flags, JSON response shapes, and per-command gotchas.\n" +
 			"Then call gumroad_run with the command as an argv array.\n\n" +
-			"Do NOT pass --json, --no-input, or --quiet: gloop adds them. Do not pass --yes\n" +
-			"either; gloop decides when confirmation is warranted.\n\n" +
+			"Do NOT pass --json, --no-input, or --quiet: gumroad-mcp adds them. Do not pass --yes\n" +
+			"either; gumroad-mcp decides when confirmation is warranted.\n\n" +
 			"DO pass --dry-run before any write you have not made before. The CLI prints the\n" +
-			"request it would send and stops, nothing reaches Gumroad, and gloop allows it for\n" +
-			"any command it can run at all — including the irreversible ones it would otherwise\n" +
+			"request it would send and stops, nothing reaches Gumroad, and gumroad-mcp allows it for\n" +
+			"any command it can run at all, including the irreversible ones it would otherwise\n" +
 			"refuse. Read the preview, then decide.\n\n")
 
 	switch {
@@ -84,7 +84,7 @@ func instructions(o Options) string {
 	default:
 		b.WriteString(
 			"POSTURE: reads and reversible writes. Irreversible commands (refunds, deletes,\n" +
-				"audience sends) are refused; tell the user to restart gloop with --allow-danger\n" +
+				"audience sends) are refused; tell the user to restart gumroad-mcp with --allow-danger\n" +
 				"if they want them.\n")
 	}
 	return b.String()
@@ -93,14 +93,14 @@ func instructions(o Options) string {
 // --- the proxy ---------------------------------------------------------------
 
 type runArgs struct {
-	Command []string `json:"command" jsonschema:"The gumroad command as an argv array, e.g. [\"products\",\"list\"] or [\"sales\",\"list\",\"--after\",\"2026-01-01\"]. Omit --json, --no-input, --quiet and --yes; gloop supplies them. Include --dry-run to preview a write instead of running it — that is allowed for every command, including ones that would otherwise be refused."`
+	Command []string `json:"command" jsonschema:"The gumroad command as an argv array, e.g. [\"products\",\"list\"] or [\"sales\",\"list\",\"--after\",\"2026-01-01\"]. Omit --json, --no-input, --quiet and --yes; gumroad-mcp supplies them. Include --dry-run to preview a write instead of running it. That is allowed for every command, including ones that would otherwise be refused."`
 	Confirm bool     `json:"confirm,omitempty" jsonschema:"Required only for irreversible commands. Set it solely after the user has asked for that exact action; never to clear a refusal you hit by accident."`
 }
 
 func registerProxy(r *registry) {
 	mcp.AddTool(r.server, &mcp.Tool{
 		Name: "gumroad_run",
-		Description: "Run a Gumroad CLI command and return its JSON. This is the main tool — it " +
+		Description: "Run a Gumroad CLI command and return its JSON. This is the main tool. It " +
 			"reaches products, sales, subscribers, licences, files, media, storefront pages, " +
 			"upsells, offer codes, variants, audience emails, workflows, webhooks and payouts. " +
 			"Call gumroad_skill first for the exact flags each command takes.",
@@ -150,7 +150,7 @@ func registerProxy(r *registry) {
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in struct {
 		Command []string `json:"command" jsonschema:"Command words to get help for, e.g. [\"products\",\"create\"]. Empty for the top-level list."`
 	}) (*mcp.CallToolResult, any, error) {
-		// Help is documentation, not an operation, so it is not tier-gated —
+		// Help is documentation, not an operation, so it is not tier-gated,
 		// but it must not become a way to probe the blocked admin surface.
 		if d := gumroadcli.Policy.Classify(in.Command, false, true); len(in.Command) > 0 && !d.Allowed {
 			return textResult("", fmt.Errorf("%s", d.Reason)), nil, nil
@@ -163,17 +163,17 @@ func registerProxy(r *registry) {
 // exec is the gate every proxied command passes through.
 func (r *registry) exec(ctx context.Context, in runArgs) (string, error) {
 	if len(in.Command) == 0 {
-		return "", fmt.Errorf("command was empty — pass an argv array such as [\"products\",\"list\"]")
+		return "", fmt.Errorf("command was empty. Pass an argv array such as [\"products\",\"list\"]")
 	}
 
-	// Reject the flags gloop owns, rather than silently duplicating them.
+	// Reject the flags gumroad-mcp owns, rather than silently duplicating them.
 	for _, a := range in.Command {
 		switch a {
 		case "--json", "--no-input", "--quiet":
-			return "", fmt.Errorf("do not pass %s; gloop adds it to every command", a)
+			return "", fmt.Errorf("do not pass %s; gumroad-mcp adds it to every command", a)
 		case "--yes", "-y":
 			return "", fmt.Errorf(
-				"do not pass --yes. gloop decides when confirmation is warranted: reversible " +
+				"do not pass --yes. gumroad-mcp decides when confirmation is warranted: reversible " +
 					"commands are auto-confirmed, and irreversible ones need confirm=true on this tool")
 		}
 	}
@@ -193,7 +193,7 @@ func (r *registry) exec(ctx context.Context, in runArgs) (string, error) {
 	case d.Tier == gate.Danger:
 		if !in.Confirm {
 			return "", fmt.Errorf(
-				"refused: `gumroad %s` cannot be undone — %s. Add --dry-run to see the request it "+
+				"refused: `gumroad %s` cannot be undone (%s). Add --dry-run to see the request it "+
 					"would send, or ask the user to confirm this exact action and call again with "+
 					"confirm=true",
 				d.Command.Name(), d.Command.Why)
@@ -228,7 +228,7 @@ func isUpload(argv []string) bool {
 // --- endpoints the official CLI does not cover -------------------------------
 
 // registerNative adds the handful of API endpoints with no `gumroad` command.
-// Everything else is proxied; this is the only place gloop talks to the API
+// Everything else is proxied; this is the only place gumroad-mcp talks to the API
 // itself, and it authenticates with the CLI's own token.
 func registerNative(r *registry) {
 	if r.api == nil {
@@ -287,7 +287,7 @@ func registerNative(r *registry) {
 
 	mcp.AddTool(r.server, &mcp.Tool{
 		Name: "gumroad_public_product",
-		Description: "Read the public product-page data for ANY seller's product — no ownership " +
+		Description: "Read the public product-page data for ANY seller's product, with no ownership " +
 			"needed. Useful for competitor research and for seeing your own page as a visitor. " +
 			"Never returns seller-private fields.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: ptr(true)},
@@ -304,7 +304,7 @@ func registerNative(r *registry) {
 
 	mcp.AddTool(r.server, &mcp.Tool{
 		Name: "gumroad_public_profile",
-		Description: "Read any creator's public profile and their visible products — no " +
+		Description: "Read any creator's public profile and their visible products, with no " +
 			"authentication or ownership needed.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: ptr(true)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in struct {

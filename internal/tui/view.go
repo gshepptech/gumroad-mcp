@@ -75,7 +75,7 @@ func (m *model) View() string {
 }
 
 func (m *model) header() string {
-	left := titleStyle.Render("gloop")
+	left := titleStyle.Render("gumroad-mcp")
 	if m.account != "" {
 		left += dimStyle.Render("  ·  " + m.account)
 	}
@@ -268,14 +268,14 @@ func (m *model) rebuild() {
 
 	// Drop the old rows BEFORE swapping columns. bubbles re-renders on
 	// SetColumns, and its row renderer walks the row's own cells while indexing
-	// into the new column slice — so leaving a wide tab for a narrower one
+	// into the new column slice, so leaving a wide tab for a narrower one
 	// panics on the stale rows unless they are cleared first.
 	m.table.SetRows(nil)
 	m.table.SetColumns(cols)
 	m.table.SetRows(rows)
 
 	// Clamp in BOTH directions. Setting empty rows parks the cursor at -1, and
-	// it does not recover on its own when rows arrive — which is every tab on
+	// it does not recover on its own when rows arrive, which is every tab on
 	// first paint, since the table is built empty before the fetch returns.
 	if c := m.table.Cursor(); len(rows) == 0 {
 		m.table.SetCursor(0)

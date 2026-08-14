@@ -12,8 +12,8 @@ import (
 
 // Runner invokes a command-line tool as a subprocess.
 //
-// It is deliberately thin. Everything CLI-specific — which flags to force,
-// how to read a failure — is supplied by the caller, because those differ per
+// It is deliberately thin. Everything CLI-specific, from which flags to force
+// to how to read a failure, is supplied by the caller, because those differ per
 // tool and guessing produces silent misbehaviour. Gumroad's CLI has a uniform
 // `--json` and a machine-readable error envelope; most do not.
 type Runner struct {

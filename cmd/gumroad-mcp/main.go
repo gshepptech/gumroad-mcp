@@ -1,8 +1,9 @@
-// Command gloop is a Gumroad client for humans and AI agents.
+// Command gumroad-mcp serves a Gumroad store to an AI agent, refusing the
+// commands that would wreck it.
 //
-//	gloop              interactive terminal interface
-//	gloop mcp          MCP server for AI agents
-//	gloop <command>    one operation, printed
+//	gumroad-mcp mcp     MCP server on stdio, gated by risk tier
+//	gumroad-mcp         interactive terminal interface
+//	gumroad-mcp doctor  check that the Gumroad CLI is installed and logged in
 package main
 
 import (
