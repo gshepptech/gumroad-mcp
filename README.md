@@ -6,7 +6,7 @@
 [![Release](https://img.shields.io/github/v/release/gshepptech/gumroad-mcp)](https://github.com/gshepptech/gumroad-mcp/releases)
 [![License](https://img.shields.io/github/license/gshepptech/gumroad-mcp)](LICENSE)
 
-An MCP server that lets an AI agent run a Gumroad store, and refuses the commands that would wreck it.
+An MCP server for Gumroad that keeps refunds, deletes and audience sends out of an agent's reach by default.
 
 It wraps the official [`gumroad` CLI](https://github.com/antiwork/gumroad-cli) rather than reimplementing the API, classifies all 99 of its commands into risk tiers, and withholds the irreversible ones unless you opt in.
 

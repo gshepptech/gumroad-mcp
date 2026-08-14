@@ -1,5 +1,5 @@
-// Command gumroad-mcp serves a Gumroad store to an AI agent, refusing the
-// commands that would wreck it.
+// Command gumroad-mcp serves a Gumroad store to an AI agent, keeping refunds,
+// deletes and audience sends out of reach by default.
 //
 //	gumroad-mcp mcp     MCP server on stdio, gated by risk tier
 //	gumroad-mcp         interactive terminal interface
