@@ -1,0 +1,40 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bodyclose      # an unclosed response body leaks a connection
+    - errorlint      # catches %v on errors and bare type assertions
+    - misspell
+    - revive
+    - unconvert
+    - whitespace
+
+  settings:
+    revive:
+      rules:
+        - name: exported          # pkg/gate is a public API
+        - name: indent-error-flow
+        - name: unreachable-code
+        - name: var-declaration
+
+  exclusions:
+    rules:
+      # A failed write to the terminal is not actionable, and a deferred
+      # Close on a drained response body has nothing left to report.
+      - linters: [errcheck]
+        source: "^\\s*(defer .*\\.Close\\(\\)|fmt\\.Fprint)"
+
+      # Tests exercise error paths deliberately and read fine without the
+      # ceremony that would satisfy errcheck.
+      - path: _test\.go
+        linters: [errcheck]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

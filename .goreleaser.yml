@@ -1,0 +1,46 @@
+version: 2
+
+project_name: gumroad-mcp
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - main: ./cmd/gumroad-mcp
+    binary: gumroad-mcp
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X github.com/gshepptech/gumroad-mcp/internal/cli.Version={{.Version}}
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files: [README.md, LICENSE]
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  footer: |
+    **Requires the official Gumroad CLI**, which this drives:
+
+    ```sh
+    brew install antiwork/cli/gumroad
+    gumroad auth login
+    ```

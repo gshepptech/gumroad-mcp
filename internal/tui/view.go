@@ -62,7 +62,7 @@ func (m *model) View() string {
 	case m.inDetail:
 		b.WriteString(m.detail.View())
 	case m.loading:
-		b.WriteString(fmt.Sprintf("  %s loading %s…", m.spin.View(), strings.ToLower(m.tab.String())))
+		fmt.Fprintf(&b, "  %s loading %s…", m.spin.View(), strings.ToLower(m.tab.String()))
 	case m.rowCount() == 0:
 		b.WriteString(dimStyle.Render("  " + m.tab.emptyHint()))
 	default:

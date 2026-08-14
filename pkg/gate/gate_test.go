@@ -45,13 +45,15 @@ func TestClassifyPostures(t *testing.T) {
 		{"forbidden by prefix", []string{"secrets", "show", "all"}, false, true, false, gate.Forbidden},
 	}
 	for _, tc := range cases {
-		d := p.Classify(tc.argv, tc.readOnly, tc.danger)
-		if d.Allowed != tc.wantAllowed {
-			t.Errorf("%s: allowed=%v want %v (%s)", tc.name, d.Allowed, tc.wantAllowed, d.Reason)
-		}
-		if d.Tier != tc.wantTier {
-			t.Errorf("%s: tier=%s want %s", tc.name, d.Tier, tc.wantTier)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			d := p.Classify(tc.argv, tc.readOnly, tc.danger)
+			if d.Allowed != tc.wantAllowed {
+				t.Errorf("allowed=%v want %v (%s)", d.Allowed, tc.wantAllowed, d.Reason)
+			}
+			if d.Tier != tc.wantTier {
+				t.Errorf("tier=%s want %s", d.Tier, tc.wantTier)
+			}
+		})
 	}
 }
 
@@ -152,9 +154,11 @@ func TestNewPolicyRejectsUnusableTables(t *testing.T) {
 		"promotion without why": {{Path: []string{"a"}, Tier: gate.Write, DangerFlags: []string{"-x"}}},
 	}
 	for name, cmds := range cases {
-		if _, err := gate.NewPolicy(cmds); err == nil {
-			t.Errorf("%s was accepted", name)
-		}
+		t.Run(name, func(t *testing.T) {
+			if _, err := gate.NewPolicy(cmds); err == nil {
+				t.Error("was accepted")
+			}
+		})
 	}
 }
 
@@ -202,10 +206,11 @@ func TestRunnerArgsConfirmsOnlyWhatItShould(t *testing.T) {
 		{"preview", gate.Decision{Tier: gate.Danger, Preview: true}, false},
 	}
 	for _, tc := range cases {
-		got := slicesContains(r.Args(tc.d, argv), "--yes")
-		if got != tc.want {
-			t.Errorf("%s: --yes present=%v want %v", tc.name, got, tc.want)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			if got := slicesContains(r.Args(tc.d, argv), "--yes"); got != tc.want {
+				t.Errorf("--yes present=%v want %v", got, tc.want)
+			}
+		})
 	}
 
 	// A tool that never prompts gets no confirm flag at all.

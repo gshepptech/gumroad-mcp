@@ -308,8 +308,8 @@ func Version(ctx context.Context, r *gate.Runner) (string, error) {
 	return strings.TrimPrefix(out, "gumroad version "), nil
 }
 
-// NotInstalled explains how to get the CLI this adapter requires.
-var NotInstalled = errors.New(
+// ErrNotInstalled explains how to get the CLI this adapter requires.
+var ErrNotInstalled = errors.New(
 	"the Gumroad CLI is not installed. gumroad-mcp drives it.\n" +
 		"  install: brew install antiwork/cli/gumroad\n" +
 		"       or: curl -fsSL https://gumroad.com/install-cli.sh | bash")

@@ -26,10 +26,12 @@ func TestClassifyTiers(t *testing.T) {
 		{[]string{"webhooks", "delete"}, gate.Write},
 	}
 	for _, tc := range cases {
-		d := Policy.Classify(tc.argv, false, true)
-		if d.Command.Tier != tc.want {
-			t.Errorf("%v classified as %s, want %s", tc.argv, d.Command.Tier, tc.want)
-		}
+		t.Run(strings.Join(tc.argv, " "), func(t *testing.T) {
+			d := Policy.Classify(tc.argv, false, true)
+			if d.Command.Tier != tc.want {
+				t.Errorf("classified as %s, want %s", d.Command.Tier, tc.want)
+			}
+		})
 	}
 }
 
@@ -51,17 +53,18 @@ func TestLongestPrefixWins(t *testing.T) {
 		"user page clear":           gate.Danger,
 	}
 	for name, want := range cases {
-		d := Policy.Classify(strings.Fields(name), false, true)
-		if !d.Allowed {
-			t.Errorf("%s was refused: %s", name, d.Reason)
-			continue
-		}
-		if d.Command.Tier != want {
-			t.Errorf("%s classified as %s, want %s", name, d.Command.Tier, want)
-		}
-		if d.Command.Name() != name {
-			t.Errorf("%s matched the shorter command %q", name, d.Command.Name())
-		}
+		t.Run(name, func(t *testing.T) {
+			d := Policy.Classify(strings.Fields(name), false, true)
+			if !d.Allowed {
+				t.Fatalf("refused: %s", d.Reason)
+			}
+			if d.Command.Tier != want {
+				t.Errorf("classified as %s, want %s", d.Command.Tier, want)
+			}
+			if d.Command.Name() != name {
+				t.Errorf("matched the shorter command %q", d.Command.Name())
+			}
+		})
 	}
 }
 
@@ -173,7 +176,7 @@ func TestAvailableRespectsPosture(t *testing.T) {
 	}
 	def := Policy.Available(false, false)
 	full := Policy.Available(false, true)
-	if !(len(ro) < len(def) && len(def) < len(full)) {
+	if len(ro) >= len(def) || len(def) >= len(full) {
 		t.Errorf("posture should widen the listing: read-only=%d default=%d full=%d",
 			len(ro), len(def), len(full))
 	}

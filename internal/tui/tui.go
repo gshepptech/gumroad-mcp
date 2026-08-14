@@ -72,9 +72,8 @@ type model struct {
 	table table.Model
 
 	// detail is non-empty when the user has drilled into a row.
-	detail    viewport.Model
-	inDetail  bool
-	detailTtl string
+	detail   viewport.Model
+	inDetail bool
 
 	account string
 

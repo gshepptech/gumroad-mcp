@@ -73,7 +73,7 @@ func runner() (*gate.Runner, error) {
 	r := gumroadcli.NewRunner()
 	path, err := r.Lookup()
 	if err != nil {
-		return nil, gumroadcli.NotInstalled
+		return nil, gumroadcli.ErrNotInstalled
 	}
 	r.Bin = path
 	return r, nil
