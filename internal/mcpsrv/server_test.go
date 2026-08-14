@@ -352,3 +352,45 @@ func TestDryRunStillCannotReachAdmin(t *testing.T) {
 		t.Errorf("admin reached the CLI: %v", c)
 	}
 }
+
+// TestPromotedCommandNeedsConfirm checks the MCP gate reads the EFFECTIVE tier.
+// `products update` is a write, but with --file it is irreversible
+// (antiwork/gumroad-cli#205), and gating on the command's own tier would let it
+// straight through.
+func TestPromotedCommandNeedsConfirm(t *testing.T) {
+	r, calls := stubCLI(t)
+	sess := connect(t, r, Options{AllowDanger: true})
+
+	// Ordinary edit: runs, auto-confirmed.
+	res := call(t, sess, "gumroad_run", map[string]any{
+		"command": []string{"products", "update", "P1", "--name", "X"},
+	})
+	if res.IsError {
+		t.Fatalf("an ordinary product edit was refused: %s", text(res))
+	}
+
+	// Same command with the destructive flag: refused without confirm.
+	res = call(t, sess, "gumroad_run", map[string]any{
+		"command": []string{"products", "update", "P1", "--file", "./a.zip"},
+	})
+	if !res.IsError {
+		t.Error("products update --file ran without confirm=true")
+	}
+	if !strings.Contains(text(res), "--file") {
+		t.Errorf("refusal does not name the flag that caused it: %s", text(res))
+	}
+
+	// And with confirm it runs.
+	res = call(t, sess, "gumroad_run", map[string]any{
+		"command": []string{"products", "update", "P1", "--file", "./a.zip"},
+		"confirm": true,
+	})
+	if res.IsError {
+		t.Fatalf("confirmed call was refused: %s", text(res))
+	}
+
+	c := calls()
+	if len(c) != 2 {
+		t.Fatalf("expected two invocations (the refused one must not run), got %v", c)
+	}
+}

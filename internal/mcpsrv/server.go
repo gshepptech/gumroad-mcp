@@ -188,7 +188,7 @@ func (r *registry) exec(ctx context.Context, in runArgs) (string, error) {
 		// The CLI prints the request and stops, so there is nothing to confirm
 		// and appending --yes would only muddy what ran.
 
-	case d.Command.Tier == gum.Danger:
+	case d.Tier == gum.Danger:
 		if !in.Confirm {
 			return "", fmt.Errorf(
 				"refused: `gumroad %s` cannot be undone — %s. Add --dry-run to see the request it "+
@@ -198,7 +198,7 @@ func (r *registry) exec(ctx context.Context, in runArgs) (string, error) {
 		}
 		args = append(args, "--yes")
 
-	case d.Command.Tier == gum.Write:
+	case d.Tier == gum.Write:
 		// Writes are reversible from the dashboard, and --no-input turns any
 		// prompt into a failure, so auto-confirm them rather than dead-ending.
 		args = append(args, "--yes")

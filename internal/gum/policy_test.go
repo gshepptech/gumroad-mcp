@@ -37,7 +37,7 @@ func TestClassifyTiers(t *testing.T) {
 func TestLongestPrefixWins(t *testing.T) {
 	cases := map[string]Tier{
 		"products page preview":     Read,
-		"products page publish":     Write,
+		"products page publish":     Danger,
 		"products page clear":       Danger,
 		"products covers add":       Write,
 		"products covers remove":    Danger,
@@ -45,7 +45,7 @@ func TestLongestPrefixWins(t *testing.T) {
 		"products content set":      Danger,
 		"products thumbnail set":    Write,
 		"products thumbnail remove": Danger,
-		"user page publish":         Write,
+		"user page publish":         Danger,
 		"user page clear":           Danger,
 	}
 	for name, want := range cases {
@@ -301,5 +301,86 @@ func TestRefusalsPointAtDryRun(t *testing.T) {
 	d = Classify([]string{"products", "create"}, true, false)
 	if !strings.Contains(d.Reason, "--dry-run") {
 		t.Errorf("read-only refusal does not mention --dry-run: %s", d.Reason)
+	}
+}
+
+// TestFlagPromotesToDanger covers the hole this policy shipped with:
+// `products update` was classified reversible, while `products update --file`
+// silently orphans content that has no version history
+// (antiwork/gumroad-cli#205). The command is not the unit of risk; the flag is.
+func TestFlagPromotesToDanger(t *testing.T) {
+	ordinary := Classify([]string{"products", "update", "P1", "--name", "X"}, false, false)
+	if !ordinary.Allowed {
+		t.Errorf("an ordinary product edit was refused: %s", ordinary.Reason)
+	}
+	if ordinary.Tier != Write {
+		t.Errorf("ordinary edit is tier %s, want write", ordinary.Tier)
+	}
+
+	for _, argv := range [][]string{
+		{"products", "update", "P1", "--file", "./a.zip"},
+		{"products", "update", "P1", "--file=./a.zip"},
+		{"products", "update", "P1", "--custom-html", "./p.html"},
+	} {
+		d := Classify(argv, false, false)
+		if d.Allowed {
+			t.Errorf("%v was allowed without --allow-danger", argv)
+		}
+		if d.Tier != Danger {
+			t.Errorf("%v is tier %s, want danger", argv, d.Tier)
+		}
+		if d.PromotedBy == "" {
+			t.Errorf("%v did not record which flag promoted it", argv)
+		}
+		if !strings.Contains(d.Reason, d.PromotedBy) {
+			t.Errorf("%v refusal does not name the flag: %s", argv, d.Reason)
+		}
+	}
+
+	// With the tier enabled it is reachable again, and still marked danger so
+	// the caller is made to confirm.
+	d := Classify([]string{"products", "update", "P1", "--file", "./a.zip"}, false, true)
+	if !d.Allowed || d.Tier != Danger {
+		t.Errorf("with --allow-danger: allowed=%v tier=%s, want true/danger", d.Allowed, d.Tier)
+	}
+}
+
+func TestPromotedCommandsStillPreviewable(t *testing.T) {
+	d := Classify([]string{"products", "update", "P1", "--file", "./a.zip", "--dry-run"}, true, false)
+	if !d.Allowed {
+		t.Errorf("a dry run of a promoted command was refused: %s", d.Reason)
+	}
+}
+
+// TestPairedCommandsShareATier is the invariant this policy broke: `page clear`
+// was irreversible while `page publish` was an ordinary write, though both
+// replace a live public page with no history. A reviewer would have asked, and
+// there was no good answer.
+func TestPairedCommandsShareATier(t *testing.T) {
+	pairs := [][2]string{
+		{"products page publish", "products page clear"},
+		{"user page publish", "user page clear"},
+		{"pages push", "products page clear"},
+	}
+	for _, p := range pairs {
+		a, aok := byName[p[0]]
+		b, bok := byName[p[1]]
+		if !aok || !bok {
+			t.Fatalf("policy is missing %q or %q", p[0], p[1])
+		}
+		if a.Tier != b.Tier {
+			t.Errorf("%q is %s but %q is %s — both replace or remove a live page "+
+				"with no version history, so they cannot differ", p[0], a.Tier, p[1], b.Tier)
+		}
+	}
+}
+
+// TestFlagPromotionsAreExplained: an unexplained promotion is a refusal the
+// caller cannot act on.
+func TestFlagPromotionsAreExplained(t *testing.T) {
+	for _, c := range policy {
+		if len(c.DangerFlags) > 0 && strings.TrimSpace(c.DangerFlagWhy) == "" {
+			t.Errorf("%s promotes on %v but carries no explanation", c.Name(), c.DangerFlags)
+		}
 	}
 }

@@ -44,6 +44,14 @@ type Command struct {
 	// Why explains a Danger or Forbidden classification to whoever reads the
 	// policy — including the model, which is shown it on refusal.
 	Why string
+
+	// DangerFlags promote the command to Danger when any of them appears in the
+	// argv. Some commands are ordinary edits until one flag turns them
+	// destructive: `products update --name` is reversible, `products update
+	// --file` silently orphans content that has no version history.
+	DangerFlags []string
+	// DangerFlagWhy explains the promotion. Required when DangerFlags is set.
+	DangerFlagWhy string
 }
 
 func (c Command) Name() string { return strings.Join(c.Path, " ") }
@@ -70,7 +78,10 @@ var policy = []Command{
 	{Path: []string{"user", "update"}, Tier: Write},
 	{Path: []string{"user", "page", "preview"}, Tier: Read},
 	{Path: []string{"user", "page", "url"}, Tier: Read},
-	{Path: []string{"user", "page", "publish"}, Tier: Write},
+	{
+		Path: []string{"user", "page", "publish"}, Tier: Danger,
+		Why: "replaces the live profile landing page; the prior HTML comes back only in the response, so it is gone unless the caller saved it",
+	},
 	{Path: []string{"user", "page", "clear"}, Tier: Danger, Why: "removes the live profile landing page; there is no version history"},
 
 	// --- products ---------------------------------------------------------
@@ -81,8 +92,18 @@ var policy = []Command{
 	{Path: []string{"products", "comps"}, Tier: Read},
 	{Path: []string{"products", "skus"}, Tier: Read},
 	{Path: []string{"products", "create"}, Tier: Write},
-	{Path: []string{"products", "update"}, Tier: Write},
-	{Path: []string{"products", "publish"}, Tier: Write},
+	{
+		Path: []string{"products", "update"}, Tier: Write,
+		// Most of this command is ordinary editing. Two flags are not.
+		DangerFlags: []string{"--file", "--custom-html"},
+		DangerFlagWhy: "--file rewrites the content page to embed ONLY the new upload, orphaning " +
+			"files buyers already download (antiwork/gumroad-cli#205), and --custom-html replaces " +
+			"the live landing page. Neither has version history",
+	},
+	{
+		Path: []string{"products", "publish"}, Tier: Write,
+		Why: "makes the product publicly buyable; reversible with products unpublish",
+	},
 	{Path: []string{"products", "unpublish"}, Tier: Write},
 	{Path: []string{"products", "delete"}, Tier: Danger, Why: "permanently deletes a product"},
 
@@ -98,7 +119,10 @@ var policy = []Command{
 
 	{Path: []string{"products", "page", "preview"}, Tier: Read},
 	{Path: []string{"products", "page", "url"}, Tier: Read},
-	{Path: []string{"products", "page", "publish"}, Tier: Write},
+	{
+		Path: []string{"products", "page", "publish"}, Tier: Danger,
+		Why: "replaces the live product landing page; the prior HTML comes back only in the response, so it is gone unless the caller saved it",
+	},
 	{Path: []string{"products", "page", "clear"}, Tier: Danger, Why: "removes the live landing page; only the latest version is stored"},
 
 	// --- catalogue --------------------------------------------------------
@@ -154,7 +178,10 @@ var policy = []Command{
 	{Path: []string{"sales", "summary"}, Tier: Read},
 	{Path: []string{"sales", "buyers"}, Tier: Read},
 	{Path: []string{"sales", "ship"}, Tier: Write},
-	{Path: []string{"sales", "export"}, Tier: Write},
+	{
+		Path: []string{"sales", "export"}, Tier: Danger,
+		Why: "emails a CSV of customer names, addresses and UTM data off the account; once sent it cannot be recalled",
+	},
 	{Path: []string{"sales", "refund"}, Tier: Danger, Why: "moves real money back to the buyer"},
 	{Path: []string{"sales", "resend-receipt"}, Tier: Danger, Why: "sends mail to a customer's inbox"},
 
@@ -229,6 +256,24 @@ type Decision struct {
 	// DryRun means the argv asked the CLI to print the request it would send
 	// instead of sending it, which is why the tier gate let it through.
 	DryRun bool
+	// Tier is the EFFECTIVE tier, which may be higher than the command's own
+	// when a flag promoted it. Callers gate on this, not Command.Tier.
+	Tier Tier
+	// PromotedBy names the flag that raised the tier, empty when none did.
+	PromotedBy string
+}
+
+// dangerFlag reports the first argv flag that promotes c to Danger.
+func dangerFlag(c Command, argv []string) (string, bool) {
+	for _, want := range c.DangerFlags {
+		for _, got := range argv {
+			// Matches both `--file x` and `--file=x`.
+			if got == want || strings.HasPrefix(got, want+"=") {
+				return want, true
+			}
+		}
+	}
+	return "", false
 }
 
 // hasDryRun reports whether the caller asked for a preview. The Gumroad CLI
@@ -293,7 +338,16 @@ func Classify(argv []string, readOnly, enableDanger bool) Decision {
 			strings.Join(words, " "))}
 	}
 
-	d := Decision{Command: best, Matched: bestN, DryRun: hasDryRun(argv)}
+	d := Decision{Command: best, Matched: bestN, DryRun: hasDryRun(argv), Tier: best.Tier}
+
+	// A flag can make an otherwise ordinary command destructive. Promote before
+	// the gate runs, and carry the flag's own explanation into the refusal.
+	if flag, ok := dangerFlag(best, argv); ok {
+		d.Tier = Danger
+		d.PromotedBy = flag
+		d.Command.Why = best.DangerFlagWhy
+	}
+
 	switch {
 	case best.Tier == Forbidden:
 		// A preview of a forbidden command still reveals the surface gloop
@@ -307,16 +361,20 @@ func Classify(argv []string, readOnly, enableDanger bool) Decision {
 		// which is the opposite of what the gate is for.
 		d.Allowed = true
 
-	case readOnly && best.Tier != Read:
+	case readOnly && d.Tier != Read:
 		d.Reason = fmt.Sprintf(
 			"this gloop server is read-only; `gumroad %s` is a %s command. Add --dry-run to preview it.",
-			best.Name(), best.Tier)
+			best.Name(), d.Tier)
 
-	case best.Tier == Danger && !enableDanger:
+	case d.Tier == Danger && !enableDanger:
+		what := fmt.Sprintf("`gumroad %s`", best.Name())
+		if d.PromotedBy != "" {
+			what = fmt.Sprintf("`gumroad %s` with %s", best.Name(), d.PromotedBy)
+		}
 		d.Reason = fmt.Sprintf(
-			"`gumroad %s` is irreversible (%s) and this gloop server was not started with "+
+			"%s is irreversible (%s) and this gloop server was not started with "+
 				"--allow-danger. Add --dry-run to see the request it would send.",
-			best.Name(), best.Why)
+			what, d.Command.Why)
 
 	default:
 		d.Allowed = true
