@@ -1,10 +1,14 @@
-# gumroad-mcp
+<div align="center">
+
+<img src=".github/assets/hero.png" alt="gumroad-mcp refusing an irreversible command" width="820">
 
 [![CI](https://github.com/gshepptech/gumroad-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/gshepptech/gumroad-mcp/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/gshepptech/gumroad-mcp/pkg/gate.svg)](https://pkg.go.dev/github.com/gshepptech/gumroad-mcp/pkg/gate)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gshepptech/gumroad-mcp)](https://goreportcard.com/report/github.com/gshepptech/gumroad-mcp)
 [![Release](https://img.shields.io/github/v/release/gshepptech/gumroad-mcp)](https://github.com/gshepptech/gumroad-mcp/releases)
 [![License](https://img.shields.io/github/license/gshepptech/gumroad-mcp)](LICENSE)
+
+</div>
 
 An MCP server for Gumroad that keeps refunds, deletes and audience sends out of an agent's reach by default.
 
