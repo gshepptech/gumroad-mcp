@@ -10,9 +10,7 @@
 
 </div>
 
-An MCP server for Gumroad that keeps refunds, deletes and audience sends out of an agent's reach by default.
-
-It wraps the official [`gumroad` CLI](https://github.com/antiwork/gumroad-cli) rather than reimplementing the API, classifies all 99 of its commands into risk tiers, and withholds the irreversible ones unless you opt in.
+Safe AI agent access to your Gumroad store. It drives the official [`gumroad` CLI](https://github.com/antiwork/gumroad-cli), classifies all 99 of its commands into risk tiers, and keeps the irreversible ones away from the agent unless you opt in.
 
 ```console
 $ gumroad-mcp doctor
