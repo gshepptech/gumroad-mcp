@@ -238,8 +238,9 @@ func TestSwitchingTabsWithLoadedRows(t *testing.T) {
 	}
 }
 
-// TestDetailValuesWrapWithHangingIndent guards a layout fault: a long tag list
-// or summary used to spill back to column zero, which reads as a broken pane.
+// TestDetailValuesWrapWithHangingIndent checks that a long tag list or summary
+// wraps under its value column; text spilling back to column zero reads as a
+// broken pane.
 func TestDetailValuesWrapWithHangingIndent(t *testing.T) {
 	detailWidth = 80
 	long := strings.Repeat("alpha beta gamma ", 12)

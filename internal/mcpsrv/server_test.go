@@ -302,9 +302,9 @@ func TestCLIFailureSurfacesAsToolError(t *testing.T) {
 	}
 }
 
-// TestDryRunRunsWithoutConfirmAndWithoutYes covers the fix for a real defect:
-// gumroad-mcp used to refuse `products content set --dry-run` outright, even though a
-// dry run sends nothing to Gumroad.
+// TestDryRunRunsWithoutConfirmAndWithoutYes checks that a danger command with
+// --dry-run runs without confirm=true and without --yes: a dry run sends nothing
+// to Gumroad, so refusing it would only push the caller towards the real call.
 func TestDryRunRunsWithoutConfirmAndWithoutYes(t *testing.T) {
 	r, calls := stubCLI(t)
 	sess := connect(t, r, Options{}) // no --allow-danger
