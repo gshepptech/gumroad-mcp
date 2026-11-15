@@ -2,9 +2,8 @@
 // the official `gumroad` CLI does not.
 //
 // Everything the CLI can do is driven through the CLI itself; see
-// internal/gumroadcli.
-// This package exists for the handful of endpoints with no command: product
-// reviews, Tax Center forms and earnings, and the unauthenticated public
+// internal/gumroadcli. This package exists for the handful of endpoints with
+// no command: product reviews, Tax Center forms and earnings, and the unauthenticated public
 // product and profile payloads.
 //
 // It authenticates with the token the official CLI already resolved, so gumroad-mcp
@@ -39,7 +38,7 @@ type Client struct {
 }
 
 // New returns a Client for the given access token, which callers get from
-// gate.Runner.Token.
+// gumroadcli.Token.
 func New(token string) *Client {
 	return &Client{
 		Token:     token,
@@ -109,7 +108,7 @@ func (c *Client) retry(ctx context.Context, do func() error) error {
 		lastErr = err
 
 		var apiErr *APIError
-		if !asAPIError(err, &apiErr) || !apiErr.Retryable() {
+		if !errors.As(err, &apiErr) || !apiErr.Retryable() {
 			return err
 		}
 	}
@@ -163,13 +162,6 @@ func decodeError(status int, b []byte) error {
 	}
 	_ = json.Unmarshal(b, &env)
 	return &APIError{StatusCode: status, Message: env.Message}
-}
-
-// Unwrap lets errors.As find an APIError through any wrapping. The retry loop
-// depends on this: a bare type assertion stops matching the moment a caller
-// wraps the error, which silently disables retries.
-func asAPIError(err error, target **APIError) bool {
-	return errors.As(err, target)
 }
 
 // --- reviews ----------------------------------------------------------------
