@@ -37,6 +37,9 @@ changelog:
       - "^chore:"
 
 release:
+  # Re-running the workflow for an existing tag replaces its assets instead of
+  # failing with 422 already_exists.
+  replace_existing_artifacts: true
   footer: |
     **Requires the official Gumroad CLI**, which this drives:
 
