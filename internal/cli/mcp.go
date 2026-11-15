@@ -70,6 +70,7 @@ func newMCPCmd() *cobra.Command {
 			}
 
 			srv := mcpsrv.New(r, api, mcpsrv.Options{
+				Version:     Version,
 				ReadOnly:    readOnly,
 				AllowDanger: allowDanger,
 			})

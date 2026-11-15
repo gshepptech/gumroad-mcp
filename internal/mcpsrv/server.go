@@ -27,11 +27,10 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// Version is reported to MCP clients during initialization.
-const Version = "0.2.0"
-
-// Options configures the server's risk posture.
+// Options configures the server.
 type Options struct {
+	// Version is reported to MCP clients during initialization.
+	Version string
 	// ReadOnly refuses every command that is not a pure read.
 	ReadOnly bool
 	// AllowDanger permits the irreversible tier. Those commands additionally
@@ -52,7 +51,7 @@ func New(run *gate.Runner, api *gumroad.Client, opts Options) *mcp.Server {
 	srv := mcp.NewServer(&mcp.Implementation{
 		Name:    "gumroad-mcp",
 		Title:   "Gumroad",
-		Version: Version,
+		Version: opts.Version,
 	}, &mcp.ServerOptions{Instructions: instructions(opts)})
 
 	r := &registry{server: srv, run: run, api: api, opts: opts}
