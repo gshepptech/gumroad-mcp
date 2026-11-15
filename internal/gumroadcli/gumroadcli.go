@@ -25,12 +25,8 @@ import (
 // Binary is the executable this adapter drives.
 const Binary = "gumroad"
 
-// Commands classifies the Gumroad CLI surface.
-//
-// The CLI's own SKILL.md tells agents to "add --yes to skip confirmation" on
-// deletes and refunds. That is advice a model can simply follow. This table is
-// the alternative: withholding a command is structural, and a model cannot
-// instruct its way past it.
+// Commands classifies the Gumroad CLI surface. Every Danger entry says what
+// the damage would be, because that text is what the model reads on refusal.
 var Commands = []gate.Command{
 	// --- auth -------------------------------------------------------------
 	{Path: []string{"auth", "status"}, Tier: gate.Read},

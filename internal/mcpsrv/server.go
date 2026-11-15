@@ -4,12 +4,8 @@
 // gumroad-mcp does not reimplement the Gumroad API. The official `gumroad` CLI
 // already covers more of it than a second client could, and its embedded
 // SKILL.md documents every command. gumroad-mcp proxies that CLI and adds the one
-// thing a skill file cannot provide: refusal.
-//
-// A skill can tell a model to be careful. A model can read that and proceed
-// anyway. The official SKILL.md instructs agents to pass `--yes` on
-// deletes and refunds. gumroad-mcp withholds the command instead, which is not
-// advice the model can argue with.
+// thing a skill file cannot provide: refusal. The decision itself is made by
+// package gate.
 package mcpsrv
 
 import (

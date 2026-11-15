@@ -309,9 +309,8 @@ func TestRefusalsPointAtDryRun(t *testing.T) {
 	}
 }
 
-// TestFlagPromotesToDanger covers the hole this policy shipped with:
-// `products update` was classified reversible, while `products update --file`
-// silently orphans content that has no version history
+// TestFlagPromotesToDanger: `products update` is reversible, but
+// `products update --file` orphans content that has no version history
 // (antiwork/gumroad-cli#205). The command is not the unit of risk; the flag is.
 func TestFlagPromotesToDanger(t *testing.T) {
 	ordinary := Policy.Classify([]string{"products", "update", "P1", "--name", "X"}, false, false)
