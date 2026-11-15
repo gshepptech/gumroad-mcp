@@ -357,10 +357,8 @@ func TestPromotedCommandsStillPreviewable(t *testing.T) {
 	}
 }
 
-// TestPairedCommandsShareATier is the invariant this policy broke: `page clear`
-// was irreversible while `page publish` was an ordinary write, though both
-// replace a live public page with no history. A reviewer would have asked, and
-// there was no good answer.
+// TestPairedCommandsShareATier: commands that replace or remove a live public
+// page with no version history must carry the same tier.
 func TestPairedCommandsShareATier(t *testing.T) {
 	pairs := [][2]string{
 		{"products page publish", "products page clear"},
@@ -388,4 +386,14 @@ func TestFlagPromotionsAreExplained(t *testing.T) {
 			t.Errorf("%s promotes on %v but carries no explanation", c.Name(), c.DangerFlags)
 		}
 	}
+}
+
+// byName finds a classified command by its space-joined name.
+func byName(name string) (gate.Command, bool) {
+	for _, c := range Commands {
+		if c.Name() == name {
+			return c, true
+		}
+	}
+	return gate.Command{}, false
 }

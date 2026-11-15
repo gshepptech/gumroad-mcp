@@ -313,14 +313,3 @@ var ErrNotInstalled = errors.New(
 	"the Gumroad CLI is not installed. gumroad-mcp drives it.\n" +
 		"  install: brew install antiwork/cli/gumroad\n" +
 		"       or: curl -fsSL https://gumroad.com/install-cli.sh | bash")
-
-// byName finds a classified command by its space-joined name. Used by tests
-// asserting that related commands share a tier.
-func byName(name string) (gate.Command, bool) {
-	for _, c := range Commands {
-		if c.Name() == name {
-			return c, true
-		}
-	}
-	return gate.Command{}, false
-}
