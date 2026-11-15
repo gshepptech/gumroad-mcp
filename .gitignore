@@ -1,7 +1,7 @@
-# Build output. Anchored with a leading slash: a bare `gloop` would also match
-# the cmd/gloop/ source directory and quietly drop main.go from the repo.
+# Build output. Anchored with a leading slash: a bare `gumroad-mcp` would also
+# match the cmd/gumroad-mcp/ source directory and quietly drop main.go.
 /bin/
-/gloop
+/gumroad-mcp
 
 # Go
 *.test
