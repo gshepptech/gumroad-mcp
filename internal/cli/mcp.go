@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -43,9 +42,6 @@ func newMCPCmd() *cobra.Command {
 				return fmt.Errorf("--read-only and --allow-danger contradict each other")
 			}
 			ctx := cmd.Context()
-			if ctx == nil {
-				ctx = context.Background()
-			}
 
 			r, err := runner()
 			if err != nil {
@@ -70,6 +66,7 @@ func newMCPCmd() *cobra.Command {
 			}
 
 			srv := mcpsrv.New(r, api, mcpsrv.Options{
+				Version:     Version,
 				ReadOnly:    readOnly,
 				AllowDanger: allowDanger,
 			})

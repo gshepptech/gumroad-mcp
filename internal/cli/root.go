@@ -85,9 +85,6 @@ func newDoctorCmd() *cobra.Command {
 		Short: "Check that gumroad-mcp can drive the Gumroad CLI",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			if ctx == nil {
-				ctx = context.Background()
-			}
 
 			r, err := runner()
 			if err != nil {

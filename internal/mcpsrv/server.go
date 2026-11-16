@@ -4,12 +4,8 @@
 // gumroad-mcp does not reimplement the Gumroad API. The official `gumroad` CLI
 // already covers more of it than a second client could, and its embedded
 // SKILL.md documents every command. gumroad-mcp proxies that CLI and adds the one
-// thing a skill file cannot provide: refusal.
-//
-// A skill can tell a model to be careful. A model can read that and proceed
-// anyway. The official SKILL.md instructs agents to pass `--yes` on
-// deletes and refunds. gumroad-mcp withholds the command instead, which is not
-// advice the model can argue with.
+// thing a skill file cannot provide: refusal. The decision itself is made by
+// package gate.
 package mcpsrv
 
 import (
@@ -17,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -26,11 +23,10 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// Version is reported to MCP clients during initialization.
-const Version = "0.2.0"
-
-// Options configures the server's risk posture.
+// Options configures the server.
 type Options struct {
+	// Version is reported to MCP clients during initialization.
+	Version string
 	// ReadOnly refuses every command that is not a pure read.
 	ReadOnly bool
 	// AllowDanger permits the irreversible tier. Those commands additionally
@@ -51,7 +47,7 @@ func New(run *gate.Runner, api *gumroad.Client, opts Options) *mcp.Server {
 	srv := mcp.NewServer(&mcp.Implementation{
 		Name:    "gumroad-mcp",
 		Title:   "Gumroad",
-		Version: Version,
+		Version: opts.Version,
 	}, &mcp.ServerOptions{Instructions: instructions(opts)})
 
 	r := &registry{server: srv, run: run, api: api, opts: opts}
@@ -166,45 +162,34 @@ func (r *registry) exec(ctx context.Context, in runArgs) (string, error) {
 		return "", fmt.Errorf("command was empty. Pass an argv array such as [\"products\",\"list\"]")
 	}
 
-	// Reject the flags gumroad-mcp owns, rather than silently duplicating them.
 	for _, a := range in.Command {
-		switch a {
-		case "--json", "--no-input", "--quiet":
-			return "", fmt.Errorf("do not pass %s; gumroad-mcp adds it to every command", a)
-		case "--yes", "-y":
+		if !slices.Contains(gumroadcli.OwnedFlags, a) {
+			continue
+		}
+		if a == "--yes" || a == "-y" {
 			return "", fmt.Errorf(
 				"do not pass --yes. gumroad-mcp decides when confirmation is warranted: reversible " +
 					"commands are auto-confirmed, and irreversible ones need confirm=true on this tool")
 		}
+		return "", fmt.Errorf("do not pass %s; gumroad-mcp adds it to every command", a)
 	}
 
 	d := gumroadcli.Policy.Classify(in.Command, r.opts.ReadOnly, r.opts.AllowDanger)
 	if !d.Allowed {
 		return "", fmt.Errorf("refused: %s", d.Reason)
 	}
-
-	args := append([]string{}, in.Command...)
-
-	switch {
-	case d.Preview:
-		// The CLI prints the request and stops, so there is nothing to confirm
-		// and appending --yes would only muddy what ran.
-
-	case d.Tier == gate.Danger:
-		if !in.Confirm {
-			return "", fmt.Errorf(
-				"refused: `gumroad %s` cannot be undone (%s). Add --dry-run to see the request it "+
-					"would send, or ask the user to confirm this exact action and call again with "+
-					"confirm=true",
-				d.Command.Name(), d.Command.Why)
-		}
-		args = append(args, "--yes")
-
-	case d.Tier == gate.Write:
-		// Writes are reversible from the dashboard, and --no-input turns any
-		// prompt into a failure, so auto-confirm them rather than dead-ending.
-		args = append(args, "--yes")
+	if d.Tier == gate.Danger && !d.Preview && !in.Confirm {
+		return "", fmt.Errorf(
+			"refused: `gumroad %s` cannot be undone (%s). Add --dry-run to see the request it "+
+				"would send, or ask the user to confirm this exact action and call again with "+
+				"confirm=true",
+			d.Command.Name(), d.Command.Why)
 	}
+
+	// Writes are reversible from the dashboard, and --no-input turns any
+	// prompt into a failure, so Args auto-confirms them along with confirmed
+	// danger calls. A preview is never confirmed.
+	args := r.run.Args(d, in.Command)
 
 	timeout := 2 * time.Minute
 	if isUpload(in.Command) {

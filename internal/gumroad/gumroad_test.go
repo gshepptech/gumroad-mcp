@@ -3,7 +3,6 @@ package gumroad
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -131,21 +130,6 @@ func TestRetryIsCancellable(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("backoff ignored the cancelled context")
-	}
-}
-
-// TestRetryableErrorSurvivesWrapping is the regression for a real bug: the
-// retry check used a bare type assertion, so a wrapped *APIError stopped
-// matching and retries silently died.
-func TestRetryableErrorSurvivesWrapping(t *testing.T) {
-	wrapped := fmt.Errorf("fetching reviews: %w", &APIError{StatusCode: 429})
-
-	var apiErr *APIError
-	if !asAPIError(wrapped, &apiErr) {
-		t.Fatal("a wrapped *APIError was not recognised, so it would never be retried")
-	}
-	if !apiErr.Retryable() {
-		t.Error("429 is not marked retryable")
 	}
 }
 

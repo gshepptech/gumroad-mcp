@@ -23,8 +23,5 @@ func runTUI(c context.Context) error {
 	if err != nil {
 		return err
 	}
-	if c == nil {
-		c = context.Background()
-	}
 	return tui.Run(c, r)
 }

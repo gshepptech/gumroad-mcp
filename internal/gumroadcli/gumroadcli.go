@@ -25,12 +25,8 @@ import (
 // Binary is the executable this adapter drives.
 const Binary = "gumroad"
 
-// Commands classifies the Gumroad CLI surface.
-//
-// The CLI's own SKILL.md tells agents to "add --yes to skip confirmation" on
-// deletes and refunds. That is advice a model can simply follow. This table is
-// the alternative: withholding a command is structural, and a model cannot
-// instruct its way past it.
+// Commands classifies the Gumroad CLI surface. Every Danger entry says what
+// the damage would be, because that text is what the model reads on refusal.
 var Commands = []gate.Command{
 	// --- auth -------------------------------------------------------------
 	{Path: []string{"auth", "status"}, Tier: gate.Read},
@@ -313,14 +309,3 @@ var ErrNotInstalled = errors.New(
 	"the Gumroad CLI is not installed. gumroad-mcp drives it.\n" +
 		"  install: brew install antiwork/cli/gumroad\n" +
 		"       or: curl -fsSL https://gumroad.com/install-cli.sh | bash")
-
-// byName finds a classified command by its space-joined name. Used by tests
-// asserting that related commands share a tier.
-func byName(name string) (gate.Command, bool) {
-	for _, c := range Commands {
-		if c.Name() == name {
-			return c, true
-		}
-	}
-	return gate.Command{}, false
-}

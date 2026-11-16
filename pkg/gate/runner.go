@@ -76,7 +76,7 @@ func (r *Runner) RunTimeout(ctx context.Context, timeout time.Duration, args ...
 	}
 
 	full := append(append([]string{}, args...), r.BaseFlags...)
-	cmd := exec.CommandContext(ctx, r.bin(), full...)
+	cmd := exec.CommandContext(ctx, r.Bin, full...)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -116,7 +116,7 @@ func (r *Runner) Text(ctx context.Context, args ...string) (string, error) {
 		defer cancel()
 	}
 
-	cmd := exec.CommandContext(ctx, r.bin(), args...)
+	cmd := exec.CommandContext(ctx, r.Bin, args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 
@@ -135,10 +135,8 @@ func (r *Runner) Text(ctx context.Context, args ...string) (string, error) {
 
 // Lookup reports whether the tool is installed, returning its resolved path.
 func (r *Runner) Lookup() (string, error) {
-	return exec.LookPath(r.bin())
+	return exec.LookPath(r.Bin)
 }
-
-func (r *Runner) bin() string { return r.Bin }
 
 // Args assembles the argv for an allowed Decision, appending ConfirmFlag when
 // the tier earned it. Previews are never auto-confirmed.
